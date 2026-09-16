@@ -4,6 +4,7 @@ import { useEffect, useRef } from "react";
 import Image from "next/image";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useCharacterSet } from "@/contexts/CharacterSetContext";
+import { useProgressIslandSrc } from "@/lib/progressIslandImage";
 
 export default function ProgressIslandUpgradePopup({
   show,
@@ -18,6 +19,7 @@ export default function ProgressIslandUpgradePopup({
   const { convertText } = useCharacterSet();
   const overlayRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
+  const islandSrc = useProgressIslandSrc(stage);
 
   // Focus the CTA when modal opens; restore body scroll
   useEffect(() => {
@@ -92,7 +94,7 @@ export default function ProgressIslandUpgradePopup({
         </p>
         <div className="relative mt-4 h-40 overflow-hidden rounded-xl bg-[var(--lingo-sky-pale)]">
           <Image
-            src={`/progress-islands/stage-${stage}.png`}
+            src={islandSrc}
             alt={`华华's upgraded Progress Island — Stage ${stage}`}
             fill
             sizes="(max-width: 640px) 100vw, 384px"

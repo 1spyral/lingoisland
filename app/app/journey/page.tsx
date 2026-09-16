@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
-import { BookOpen, Check, Clock, Lock, Map, Plus } from "lucide-react";
+import { BookOpen, Check, Clock, Lock, Map, Mic, Plus } from "lucide-react";
 import { useElementWidth } from "@/hooks/useElementWidth";
 import { BrowsePreviousJourneys } from "@/components/app/BrowsePreviousJourneys";
 import type { CompletedJourney } from "@/types/journey";
@@ -15,14 +15,19 @@ const MAP_TOP_PADDING = 64;
 const MAP_BOTTOM_PADDING = 92;
 const MAP_H = 820 + MAP_TOP_PADDING + MAP_BOTTOM_PADDING;
 const MAX_W = 600;
+// 11-node order: I1, T1, I2, S1, T2, I3, T3, I4, T4, I5, S2
 const BASE_NODES = [
   { bx: 100, cy: 55 },
-  { bx: 280, cy: 175 },
-  { bx: 190, cy: 295 },
-  { bx: 80, cy: 415 },
-  { bx: 270, cy: 530 },
-  { bx: 155, cy: 645 },
-  { bx: 190, cy: 760 },
+  { bx: 220, cy: 127 },
+  { bx: 280, cy: 199 },
+  { bx: 190, cy: 271 },
+  { bx: 90, cy: 343 },
+  { bx: 190, cy: 415 },
+  { bx: 280, cy: 487 },
+  { bx: 190, cy: 559 },
+  { bx: 90, cy: 631 },
+  { bx: 190, cy: 703 },
+  { bx: 270, cy: 775 },
 ] as const;
 const MAP_NODES = BASE_NODES.map((node) => ({
   bx: node.bx,
@@ -31,7 +36,7 @@ const MAP_NODES = BASE_NODES.map((node) => ({
 
 type ApiNode = {
   id: string;
-  node_type: "island" | "story";
+  node_type: "island" | "story" | "tone_practice";
   position: number;
   order?: number;
   name: string;
@@ -40,12 +45,13 @@ type ApiNode = {
   word_count?: number | null;
   island_id?: string | null;
   story_id?: string | null;
+  pronunciation_session_id?: string | null;
   completed_at?: string | null;
 };
 
 type PathNode = {
   id: string;
-  type: "island" | "story";
+  type: "island" | "story" | "tone_practice";
   position: number;
   islandOrder: number;
   name: string;
@@ -54,6 +60,7 @@ type PathNode = {
   wordCount: number;
   islandId?: string;
   storyId?: string;
+  pronunciationSessionId?: string;
   completed: boolean;
   current: boolean;
   paywalled: boolean;
@@ -132,6 +139,42 @@ function StoryNode({
       <BookOpen
         size={Math.max(15, Math.round(size * 0.38))}
         color={current ? "#ea580c" : done ? "#f59e0b" : "#fcd34d"}
+      />
+    </div>
+  );
+}
+
+function TonePracticeNode({
+  size,
+  done,
+  current = false,
+}: {
+  size: number;
+  done: boolean;
+  current?: boolean;
+}) {
+  return (
+    <div
+      style={{
+        width: current ? size + 10 : size,
+        height: current ? size + 10 : size,
+        borderRadius: Math.round(size * 0.3),
+        background: current ? "#f0f9ff" : "white",
+        border: `2px solid ${current ? "#0ea5e9" : done ? "#38bdf8" : "#bae6fd"}`,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        opacity: 1,
+        boxShadow: current
+          ? "0 0 0 6px rgba(240,249,255,0.95), 0 10px 28px rgba(14,165,233,0.28)"
+          : "none",
+        transform: current ? "scale(1.06)" : "none",
+        transition: "transform 180ms ease, box-shadow 180ms ease",
+      }}
+    >
+      <Mic
+        size={Math.max(15, Math.round(size * 0.38))}
+        color={current ? "#0284c7" : done ? "#0ea5e9" : "#7dd3fc"}
       />
     </div>
   );
@@ -218,13 +261,13 @@ function LockedNode({
 
 function LabelCard({
   node,
-  isStory,
+  kind,
   isDesktop,
   onContinue,
   scale = 1,
 }: {
   node: PathNode;
-  isStory: boolean;
+  kind: "island" | "story" | "tone_practice";
   isDesktop: boolean;
   onContinue: (node: PathNode) => void;
   scale?: number;
@@ -237,6 +280,77 @@ function LabelCard({
   const bodySize = Math.round((isDesktop ? 10 : 9) * scale);
   const eyebrowSize = Math.round(9 * scale);
   const compactTitleSize = Math.round(11 * scale);
+  const isStory = kind === "story";
+  const isTonePractice = kind === "tone_practice";
+
+  if (isTonePractice && node.current) {
+    return (
+      <div
+        style={{
+          background: "linear-gradient(135deg, #f0f9ff 0%, #eff6ff 100%)",
+          border: "1px solid #7dd3fc",
+          borderRadius: 14,
+          padding: `${Math.round((isDesktop ? 10 : 9) * scale)}px ${Math.round((isDesktop ? 12 : 10) * scale)}px`,
+          boxShadow: "0 10px 28px rgba(14,165,233,0.18)",
+        }}
+      >
+        <p
+          style={{
+            fontSize: eyebrowSize,
+            fontWeight: 900,
+            color: "#0284c7",
+            marginBottom: 2,
+            textTransform: "uppercase",
+            letterSpacing: "0.1em",
+          }}
+        >
+          Pronunciation checkpoint
+        </p>
+        <p style={{ fontSize: titleSize, fontWeight: 900, color: "#0c4a6e", lineHeight: 1.3 }}>
+          {node.name}
+        </p>
+        <p style={{ fontSize: bodySize, color: "#0369a1", marginTop: 4, fontWeight: 700 }}>
+          Practice now →
+        </p>
+      </div>
+    );
+  }
+
+  if (isTonePractice) {
+    return (
+      <div
+        style={{
+          background: node.completed ? "#f0f9ff" : "rgba(240,249,255,0.9)",
+          border: `1px solid ${node.completed ? "#bae6fd" : "#e0f2fe"}`,
+          borderRadius: 12,
+          padding: `${storyPadY}px ${storyPadX}px`,
+          opacity: node.completed ? 1 : 0.8,
+          boxShadow: "0 1px 3px rgba(0,0,0,0.04)",
+        }}
+      >
+        <p
+          style={{
+            fontSize: eyebrowSize,
+            fontWeight: 900,
+            color: "#0ea5e9",
+            marginBottom: 2,
+            textTransform: "uppercase",
+            letterSpacing: "0.1em",
+          }}
+        >
+          Practice
+        </p>
+        <p style={{ fontSize: compactTitleSize, fontWeight: 700, color: "#374151", lineHeight: 1.3 }}>
+          {node.name}
+        </p>
+        {isDesktop && (
+          <p style={{ fontSize: bodySize, color: "#0284c7", marginTop: 3 }}>
+            {node.completed ? "Practice again →" : "Pronunciation checkpoint"}
+          </p>
+        )}
+      </div>
+    );
+  }
 
   if (isStory && node.current) {
     return (
@@ -445,22 +559,24 @@ function JourneyMapNode({
 }) {
   const [isHovered, setIsHovered] = useState(false);
   const isStory = node.type === "story";
-  const storyClickable = isStory && (node.current || node.completed);
+  const isTonePractice = node.type === "tone_practice";
+  const isCheckpoint = isStory || isTonePractice;
+  const checkpointClickable = isCheckpoint && (node.current || node.completed);
   const islandClickable = node.completed || node.current || node.paywalled;
   const hoverEligible = node.completed || node.current;
   const hoverScale = hoverEligible && isHovered ? 1.08 : 1;
   const onLeft = baseNode.bx < BASE_W / 2;
-  const storySize = Math.round(40 * scale);
+  const checkpointSize = Math.round(40 * scale);
   const islandSize = Math.round((node.current ? 52 : 44) * scale);
   const islandRadius = Math.round((node.current ? 26 : 22) * scale);
-  const iconHalf = isStory ? storySize / 2 : islandSize / 2;
+  const iconHalf = isCheckpoint ? checkpointSize / 2 : islandSize / 2;
   const pctX = `${(baseNode.bx / BASE_W) * 100}%`;
   const labelWidth = Math.round(148 * scale);
   const labelOffset = iconHalf + 10;
 
   const handleClick = () => {
-    if (node.type === "story") {
-      if (node.completed || node.current) {
+    if (isCheckpoint) {
+      if (checkpointClickable) {
         void onContinue(node);
       }
       return;
@@ -478,10 +594,10 @@ function JourneyMapNode({
         top: baseNode.cy,
         transform: "translate(-50%, -50%)",
         zIndex: node.current ? 60 : node.completed ? 30 : 10,
-        cursor: storyClickable ? "pointer" : undefined,
+        cursor: checkpointClickable ? "pointer" : undefined,
       }}
     >
-      {!isStory && hskLevel && (
+      {!isCheckpoint && hskLevel && (
         <span
           style={{ position: "absolute", top: -6, right: -6, zIndex: 70 }}
           className="rounded-full bg-blue-600 px-1.5 py-0.5 text-[9px] font-bold text-white shadow-sm"
@@ -489,19 +605,19 @@ function JourneyMapNode({
           HSK {hskLevel}
         </span>
       )}
-      {isStory ? (
+      {isCheckpoint ? (
         <>
           <button
             type="button"
             onClick={() => {
-              if (storyClickable) {
+              if (checkpointClickable) {
                 void onContinue(node);
               }
             }}
             onMouseEnter={() => setIsHovered(true)}
             onMouseLeave={() => setIsHovered(false)}
             onKeyDown={(event) => {
-              if (!storyClickable) return;
+              if (!checkpointClickable) return;
               if (event.key === "Enter" || event.key === " ") {
                 event.preventDefault();
                 void onContinue(node);
@@ -512,20 +628,24 @@ function JourneyMapNode({
               border: "none",
               background: "transparent",
               padding: 0,
-              cursor: storyClickable ? "pointer" : "default",
-              pointerEvents: storyClickable ? "auto" : "none",
+              cursor: checkpointClickable ? "pointer" : "default",
+              pointerEvents: checkpointClickable ? "auto" : "none",
               position: "relative",
               zIndex: 1,
               transform: `scale(${hoverScale})`,
               transition: "transform 220ms cubic-bezier(0.22, 1, 0.36, 1)",
               willChange: "transform",
             }}
-            disabled={!storyClickable}
+            disabled={!checkpointClickable}
           >
-            <StoryNode size={storySize} done={node.completed} current={node.current} />
+            {isTonePractice ? (
+              <TonePracticeNode size={checkpointSize} done={node.completed} current={node.current} />
+            ) : (
+              <StoryNode size={checkpointSize} done={node.completed} current={node.current} />
+            )}
           </button>
           {showLabel && (
-            storyClickable ? (
+            checkpointClickable ? (
               <button
                 type="button"
                 onClick={() => void onContinue(node)}
@@ -552,7 +672,7 @@ function JourneyMapNode({
               >
                 <LabelCard
                   node={node}
-                  isStory
+                  kind={node.type}
                   isDesktop={showDesktopDetails}
                   onContinue={onContinue}
                   scale={scale}
@@ -574,7 +694,7 @@ function JourneyMapNode({
               >
                 <LabelCard
                   node={node}
-                  isStory
+                  kind={node.type}
                   isDesktop={showDesktopDetails}
                   onContinue={onContinue}
                   scale={scale}
@@ -649,7 +769,7 @@ function JourneyMapNode({
               >
                 <LabelCard
                   node={node}
-                  isStory={false}
+                  kind="island"
                   isDesktop={showDesktopDetails}
                   onContinue={onContinue}
                   scale={scale}
@@ -670,7 +790,7 @@ function JourneyMapNode({
               >
                 <LabelCard
                   node={node}
-                  isStory={false}
+                  kind="island"
                   isDesktop={showDesktopDetails}
                   onContinue={onContinue}
                   scale={scale}
@@ -753,6 +873,8 @@ function JourneySidebarPanel({
                   <div className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-gray-100">
                     {node.type === "story" ? (
                       <BookOpen size={10} color="#fbbf24" />
+                    ) : node.type === "tone_practice" ? (
+                      <Mic size={10} color="#38bdf8" />
                     ) : (
                       <Lock size={9} color="#d1d5db" />
                     )}
@@ -763,12 +885,18 @@ function JourneySidebarPanel({
                     </p>
                     <p
                       className={`mt-0.5 text-[9px] ${
-                        node.type === "story" ? "text-amber-300" : "text-gray-300"
+                        node.type === "story"
+                          ? "text-amber-300"
+                          : node.type === "tone_practice"
+                            ? "text-sky-300"
+                            : "text-gray-300"
                       }`}
                     >
                       {node.type === "story"
                         ? "Story checkpoint"
-                        : `${node.wordCount} words`}
+                        : node.type === "tone_practice"
+                          ? "Pronunciation checkpoint"
+                          : `${node.wordCount} words`}
                     </p>
                   </div>
                 </div>
@@ -834,6 +962,7 @@ function pathNodeCountStories(islandCount: number) {
 
 export default function JourneyPage() {
   const STORY_CACHE_KEY = "journey_story_checkpoint_cache_v1";
+  const TONE_PRACTICE_CACHE_KEY = "journey_tone_practice_cache_v1";
   const router = useRouter();
   const pathname = usePathname() ?? "";
   const isHskApp = pathname.startsWith("/hsk/app");
@@ -843,10 +972,14 @@ export default function JourneyPage() {
   const journeySectionLabel = isHskApp ? HSK_APP_LABELS.journey.nav : "Journey";
   const pageRef = useRef<HTMLDivElement | null>(null);
   const storyRequestRef = useRef<Record<string, Promise<string | null>>>({});
+  const tonePracticeRequestRef = useRef<Record<string, Promise<string | null>>>({});
   const [loading, setLoading] = useState(true);
   const [isDesktopViewport, setIsDesktopViewport] = useState(false);
   const [storyClickError, setStoryClickError] = useState<string | null>(null);
   const [checkpointStoryIds, setCheckpointStoryIds] = useState<
+    Record<string, string>
+  >({});
+  const [tonePracticeSessionIds, setTonePracticeSessionIds] = useState<
     Record<string, string>
   >({});
   const [journey, setJourney] = useState<{
@@ -928,6 +1061,24 @@ export default function JourneyPage() {
     }
   }, [journey]);
 
+  useEffect(() => {
+    if (!journey) return;
+    try {
+      const raw = window.localStorage.getItem(TONE_PRACTICE_CACHE_KEY);
+      if (!raw) return;
+      const parsed = JSON.parse(raw) as Record<string, string>;
+      const scoped: Record<string, string> = {};
+      for (const [key, value] of Object.entries(parsed)) {
+        if (key.startsWith(`${journey.id}:`) && typeof value === "string" && value) {
+          scoped[key.replace(`${journey.id}:`, "")] = value;
+        }
+      }
+      setTonePracticeSessionIds(scoped);
+    } catch {
+      // Ignore malformed cache values and continue without checkpoint cache.
+    }
+  }, [journey]);
+
   const pathNodes = useMemo((): PathNode[] => {
     const sorted = [...apiNodes].sort(
       (a, b) => (a.position ?? 0) - (b.position ?? 0),
@@ -947,6 +1098,7 @@ export default function JourneyPage() {
         wordCount: node.word_count ?? (islandOrder === 1 ? 5 : 10),
         islandId: node.island_id ?? undefined,
         storyId: node.story_id ?? undefined,
+        pronunciationSessionId: node.pronunciation_session_id ?? undefined,
         completed: !!node.completed_at,
         current: node.id === firstIncompleteId,
         paywalled: node.node_type === "island" && !isPro && islandOrder > 2,
@@ -1042,6 +1194,60 @@ export default function JourneyPage() {
     }
   }, [journey, checkpointStoryIds, saveCheckpointStoryId]);
 
+  const saveTonePracticeSessionId = useCallback((nodeId: string, sessionId: string) => {
+    if (!journey) return;
+    setTonePracticeSessionIds((previous) => ({
+      ...previous,
+      [nodeId]: sessionId,
+    }));
+    try {
+      const raw = window.localStorage.getItem(TONE_PRACTICE_CACHE_KEY);
+      const parsed = raw ? (JSON.parse(raw) as Record<string, string>) : {};
+      parsed[`${journey.id}:${nodeId}`] = sessionId;
+      window.localStorage.setItem(TONE_PRACTICE_CACHE_KEY, JSON.stringify(parsed));
+    } catch {
+      // Ignore cache write errors; routing still works.
+    }
+  }, [journey]);
+
+  const resolveTonePracticeSessionId = useCallback(async (node: PathNode) => {
+    if (!journey || node.type !== "tone_practice") return null;
+
+    const cachedSessionId = node.pronunciationSessionId ?? tonePracticeSessionIds[node.id];
+    if (cachedSessionId) return cachedSessionId;
+
+    const pending = tonePracticeRequestRef.current[node.id];
+    if (pending) return pending;
+
+    const request = (async () => {
+      const response = await fetch(
+        `/api/journey/${journey.id}/tone-practice`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ journeyNodeId: node.id }),
+        },
+      );
+      const data = await response.json().catch(() => ({}));
+      if (response.ok && data.sessionId) {
+        saveTonePracticeSessionId(node.id, data.sessionId);
+        return data.sessionId as string;
+      }
+
+      setStoryClickError(
+        typeof data?.error === "string" ? data.error : "Couldn't start pronunciation practice yet.",
+      );
+      return null;
+    })();
+
+    tonePracticeRequestRef.current[node.id] = request;
+    try {
+      return await request;
+    } finally {
+      delete tonePracticeRequestRef.current[node.id];
+    }
+  }, [journey, tonePracticeSessionIds, saveTonePracticeSessionId]);
+
   useEffect(() => {
     if (!journey || !currentNode || currentNode.type !== "story") return;
     void (async () => {
@@ -1053,6 +1259,18 @@ export default function JourneyPage() {
       }
     })();
   }, [journey, currentNode, resolveCheckpointStoryId, router]);
+
+  useEffect(() => {
+    if (!journey || !currentNode || currentNode.type !== "tone_practice") return;
+    void (async () => {
+      const sessionId = await resolveTonePracticeSessionId(currentNode);
+      if (sessionId) {
+        router.prefetch(
+          `/app/pronunciation/session/${sessionId}?journeyId=${encodeURIComponent(journey.id)}&journeyNodeId=${encodeURIComponent(currentNode.id)}`,
+        );
+      }
+    })();
+  }, [journey, currentNode, resolveTonePracticeSessionId, router, appBase]);
 
   const handleContinue = async (node: PathNode) => {
     if (!journey) return;
@@ -1109,6 +1327,17 @@ export default function JourneyPage() {
     router.push(
       `${appBase}/journey/${journey.id}/story-loading?journeyNodeId=${encodeURIComponent(node.id)}`,
     );
+  };
+
+  const handleTonePracticeOpen = async (node: PathNode) => {
+    if (!journey || node.type !== "tone_practice") return;
+    setStoryClickError(null);
+    const sessionId = await resolveTonePracticeSessionId(node);
+    if (sessionId) {
+      router.push(
+        `/app/pronunciation/session/${sessionId}?journeyId=${encodeURIComponent(journey.id)}&journeyNodeId=${encodeURIComponent(node.id)}`,
+      );
+    }
   };
 
   if (isHskCurriculum) {
@@ -1267,7 +1496,9 @@ export default function JourneyPage() {
                     onContinue={(pathNode) =>
                       pathNode.type === "story"
                         ? handleStoryOpen(pathNode)
-                        : void handleContinue(pathNode)
+                        : pathNode.type === "tone_practice"
+                          ? void handleTonePracticeOpen(pathNode)
+                          : void handleContinue(pathNode)
                     }
                     showLabel={showMapLabels}
                     scale={mapUiScale}
@@ -1303,7 +1534,9 @@ export default function JourneyPage() {
               onContinue={(pathNode) =>
                 pathNode.type === "story"
                   ? handleStoryOpen(pathNode)
-                  : void handleContinue(pathNode)
+                  : pathNode.type === "tone_practice"
+                    ? void handleTonePracticeOpen(pathNode)
+                    : void handleContinue(pathNode)
               }
             />
           )}

@@ -9,6 +9,7 @@ import {
   CheckCircle2,
   Lock,
   Map,
+  Mic,
 } from "lucide-react";
 import { useElementWidth } from "@/hooks/useElementWidth";
 // ─── Map layout constants (must match /app/journey exactly) ───────────────────
@@ -19,15 +20,21 @@ const MAP_BOTTOM_PADDING = 92;
 const MAP_H = 820 + MAP_TOP_PADDING + MAP_BOTTOM_PADDING;
 const MAX_W = 600;
 const STORY_CACHE_KEY = "journey_story_checkpoint_cache_v1";
+const TONE_PRACTICE_CACHE_KEY = "journey_tone_practice_cache_v1";
 
+// 11-node order: I1, T1, I2, S1, T2, I3, T3, I4, T4, I5, S2
 const BASE_NODES = [
   { bx: 100, cy: 55 },
-  { bx: 280, cy: 175 },
-  { bx: 190, cy: 295 },
-  { bx: 80, cy: 415 },
-  { bx: 270, cy: 530 },
-  { bx: 155, cy: 645 },
-  { bx: 190, cy: 760 },
+  { bx: 220, cy: 127 },
+  { bx: 280, cy: 199 },
+  { bx: 190, cy: 271 },
+  { bx: 90, cy: 343 },
+  { bx: 190, cy: 415 },
+  { bx: 280, cy: 487 },
+  { bx: 190, cy: 559 },
+  { bx: 90, cy: 631 },
+  { bx: 190, cy: 703 },
+  { bx: 270, cy: 775 },
 ] as const;
 
 const MAP_NODES = BASE_NODES.map((n) => ({ bx: n.bx, cy: n.cy + MAP_TOP_PADDING }));
@@ -36,7 +43,7 @@ const MAP_NODES = BASE_NODES.map((n) => ({ bx: n.bx, cy: n.cy + MAP_TOP_PADDING 
 
 type ApiNode = {
   id: string;
-  node_type: "island" | "story";
+  node_type: "island" | "story" | "tone_practice";
   position: number;
   order?: number;
   name: string;
@@ -45,12 +52,13 @@ type ApiNode = {
   word_count?: number | null;
   island_id?: string | null;
   story_id?: string | null;
+  pronunciation_session_id?: string | null;
   completed_at?: string | null;
 };
 
 type PathNode = {
   id: string;
-  type: "island" | "story";
+  type: "island" | "story" | "tone_practice";
   position: number;
   islandOrder: number;
   name: string;
@@ -59,6 +67,7 @@ type PathNode = {
   wordCount: number;
   islandId?: string;
   storyId?: string;
+  pronunciationSessionId?: string;
   completed: boolean;
   current: boolean;
 };
@@ -126,6 +135,31 @@ function StoryNode({ size, done, current = false }: { size: number; done: boolea
   );
 }
 
+function TonePracticeNode({ size, done, current = false }: { size: number; done: boolean; current?: boolean }) {
+  return (
+    <div
+      style={{
+        width: current ? size + 10 : size,
+        height: current ? size + 10 : size,
+        borderRadius: Math.round(size * 0.3),
+        background: current ? "#f0f9ff" : "white",
+        border: `2px solid ${current ? "#0ea5e9" : done ? "#38bdf8" : "#bae6fd"}`,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        boxShadow: current ? "0 0 0 6px rgba(240,249,255,0.95), 0 10px 28px rgba(14,165,233,0.28)" : "none",
+        transform: current ? "scale(1.06)" : "none",
+        transition: "transform 180ms ease, box-shadow 180ms ease",
+      }}
+    >
+      <Mic
+        size={Math.max(15, Math.round(size * 0.38))}
+        color={current ? "#0284c7" : done ? "#0ea5e9" : "#7dd3fc"}
+      />
+    </div>
+  );
+}
+
 function DoneNode({ r }: { r: number }) {
   return (
     <div style={{ width: r * 2, height: r * 2, borderRadius: 9999, background: "#14b8a6", display: "flex", alignItems: "center", justifyContent: "center", color: "white" }}>
@@ -152,13 +186,13 @@ function LockedNode({ r, num, fontSize }: { r: number; num: number; fontSize: nu
 
 function LabelCard({
   node,
-  isStory,
+  kind,
   isDesktop,
   onNavigate,
   scale = 1,
 }: {
   node: PathNode;
-  isStory: boolean;
+  kind: "island" | "story" | "tone_practice";
   isDesktop: boolean;
   onNavigate: (node: PathNode) => void;
   scale?: number;
@@ -169,6 +203,28 @@ function LabelCard({
   const bodySz = Math.round((isDesktop ? 10 : 9) * scale);
   const eyebrowSz = Math.round(9 * scale);
   const compactSz = Math.round(11 * scale);
+  const isStory = kind === "story";
+  const isTonePractice = kind === "tone_practice";
+
+  if (isTonePractice && node.current) {
+    return (
+      <div style={{ background: "linear-gradient(135deg,#f0f9ff 0%,#eff6ff 100%)", border: "1px solid #7dd3fc", borderRadius: 14, padding: `${Math.round((isDesktop ? 10 : 9) * scale)}px ${Math.round((isDesktop ? 12 : 10) * scale)}px`, boxShadow: "0 10px 28px rgba(14,165,233,0.18)" }}>
+        <p style={{ fontSize: eyebrowSz, fontWeight: 900, color: "#0284c7", marginBottom: 2, textTransform: "uppercase", letterSpacing: "0.1em" }}>Pronunciation checkpoint</p>
+        <p style={{ fontSize: titleSz, fontWeight: 900, color: "#0c4a6e", lineHeight: 1.3 }}>{node.name}</p>
+        <p style={{ fontSize: bodySz, color: "#0369a1", marginTop: 4, fontWeight: 700 }}>Practice now →</p>
+      </div>
+    );
+  }
+
+  if (isTonePractice) {
+    return (
+      <div style={{ background: node.completed ? "#f0f9ff" : "rgba(240,249,255,0.9)", border: `1px solid ${node.completed ? "#bae6fd" : "#e0f2fe"}`, borderRadius: 12, padding: `${Math.round(8 * scale)}px ${Math.round(10 * scale)}px`, opacity: node.completed ? 1 : 0.8, boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}>
+        <p style={{ fontSize: eyebrowSz, fontWeight: 900, color: "#0ea5e9", marginBottom: 2, textTransform: "uppercase", letterSpacing: "0.1em" }}>Practice</p>
+        <p style={{ fontSize: compactSz, fontWeight: 700, color: "#374151", lineHeight: 1.3 }}>{node.name}</p>
+        {isDesktop && <p style={{ fontSize: bodySz, color: "#0284c7", marginTop: 3 }}>{node.completed ? "Practice again →" : "Pronunciation checkpoint"}</p>}
+      </div>
+    );
+  }
 
   if (isStory && node.current) {
     return (
@@ -242,21 +298,23 @@ function JourneyMapNode({
 }) {
   const [isHovered, setIsHovered] = useState(false);
   const isStory = node.type === "story";
-  const storyClickable = isStory && (node.current || node.completed);
+  const isTonePractice = node.type === "tone_practice";
+  const isCheckpoint = isStory || isTonePractice;
+  const checkpointClickable = isCheckpoint && (node.current || node.completed);
   const islandClickable = node.completed || node.current;
+  const clickable = isCheckpoint ? checkpointClickable : islandClickable;
   const hoverScale = (node.completed || node.current) && isHovered ? 1.08 : 1;
   const onLeft = baseNode.bx < BASE_W / 2;
-  const storySize = Math.round(40 * scale);
+  const checkpointSize = Math.round(40 * scale);
   const islandSize = Math.round((node.current ? 52 : 44) * scale);
   const islandRadius = Math.round((node.current ? 26 : 22) * scale);
-  const iconHalf = isStory ? storySize / 2 : islandSize / 2;
+  const iconHalf = isCheckpoint ? checkpointSize / 2 : islandSize / 2;
   const pctX = `${(baseNode.bx / BASE_W) * 100}%`;
   const labelWidth = Math.round(148 * scale);
   const labelOffset = iconHalf + 10;
 
   const handleClick = () => {
-    if (isStory) { if (storyClickable) void onNavigate(node); }
-    else { if (islandClickable) void onNavigate(node); }
+    if (clickable) void onNavigate(node);
   };
 
   const iconButton = (
@@ -267,17 +325,19 @@ function JourneyMapNode({
       onMouseLeave={() => setIsHovered(false)}
       style={{
         display: "flex", border: "none", background: "transparent", padding: 0,
-        cursor: (isStory ? storyClickable : islandClickable) ? "pointer" : "default",
-        pointerEvents: (isStory ? storyClickable : islandClickable) ? "auto" : "none",
+        cursor: clickable ? "pointer" : "default",
+        pointerEvents: clickable ? "auto" : "none",
         position: "relative", zIndex: 1,
         transform: `scale(${hoverScale})`,
         transition: "transform 220ms cubic-bezier(0.22,1,0.36,1)",
         willChange: "transform",
       }}
-      disabled={!(isStory ? storyClickable : islandClickable)}
+      disabled={!clickable}
     >
       {isStory ? (
-        <StoryNode size={storySize} done={node.completed} current={node.current} />
+        <StoryNode size={checkpointSize} done={node.completed} current={node.current} />
+      ) : isTonePractice ? (
+        <TonePracticeNode size={checkpointSize} done={node.completed} current={node.current} />
       ) : node.completed ? (
         <DoneNode r={islandRadius} />
       ) : node.current ? (
@@ -288,9 +348,9 @@ function JourneyMapNode({
     </button>
   );
 
-  const labelClickable = isStory ? storyClickable : islandClickable;
+  const labelClickable = clickable;
   const labelEl = (
-    <LabelCard node={node} isStory={isStory} isDesktop={showDesktopDetails} onNavigate={onNavigate} scale={scale} />
+    <LabelCard node={node} kind={node.type} isDesktop={showDesktopDetails} onNavigate={onNavigate} scale={scale} />
   );
 
   return (
@@ -360,6 +420,7 @@ export default function JourneyDetailPage() {
   const journeyId = params?.id as string;
   const pageRef = useRef<HTMLDivElement | null>(null);
   const storyRequestRef = useRef<Record<string, Promise<string | null>>>({});
+  const tonePracticeRequestRef = useRef<Record<string, Promise<string | null>>>({});
 
   const [loading, setLoading] = useState(true);
   const [journey, setJourney] = useState<{
@@ -372,6 +433,7 @@ export default function JourneyDetailPage() {
   const [apiNodes, setApiNodes] = useState<ApiNode[]>([]);
   const [storyClickError, setStoryClickError] = useState<string | null>(null);
   const [checkpointStoryIds, setCheckpointStoryIds] = useState<Record<string, string>>({});
+  const [tonePracticeSessionIds, setTonePracticeSessionIds] = useState<Record<string, string>>({});
   const [isDesktopViewport, setIsDesktopViewport] = useState(false);
 
   const pageWidth = useElementWidth(pageRef, 920);
@@ -422,6 +484,25 @@ export default function JourneyDetailPage() {
     }
   }, [journey]);
 
+  // Pronunciation session ID cache (keyed by journeyId so multi-journey safe)
+  useEffect(() => {
+    if (!journey) return;
+    try {
+      const raw = window.localStorage.getItem(TONE_PRACTICE_CACHE_KEY);
+      if (!raw) return;
+      const parsed = JSON.parse(raw) as Record<string, string>;
+      const scoped: Record<string, string> = {};
+      for (const [key, val] of Object.entries(parsed)) {
+        if (key.startsWith(`${journey.id}:`) && val) {
+          scoped[key.slice(journey.id.length + 1)] = val;
+        }
+      }
+      setTonePracticeSessionIds(scoped);
+    } catch {
+      // ignore malformed cache
+    }
+  }, [journey]);
+
   const pathNodes = useMemo((): PathNode[] => {
     const sorted = [...apiNodes].sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
     const firstIncompleteId = sorted.find((n) => !n.completed_at)?.id;
@@ -438,6 +519,7 @@ export default function JourneyDetailPage() {
         wordCount: node.word_count ?? (islandOrder === 1 ? 5 : 10),
         islandId: node.island_id ?? undefined,
         storyId: node.story_id ?? undefined,
+        pronunciationSessionId: node.pronunciation_session_id ?? undefined,
         completed: !!node.completed_at,
         current: node.id === firstIncompleteId,
       };
@@ -502,6 +584,44 @@ export default function JourneyDetailPage() {
     finally { delete storyRequestRef.current[node.id]; }
   }, [journey, checkpointStoryIds, saveCheckpointStoryId]);
 
+  const saveTonePracticeSessionId = useCallback((nodeId: string, sessionId: string) => {
+    if (!journey) return;
+    setTonePracticeSessionIds((prev) => ({ ...prev, [nodeId]: sessionId }));
+    try {
+      const raw = window.localStorage.getItem(TONE_PRACTICE_CACHE_KEY);
+      const parsed = raw ? (JSON.parse(raw) as Record<string, string>) : {};
+      parsed[`${journey.id}:${nodeId}`] = sessionId;
+      window.localStorage.setItem(TONE_PRACTICE_CACHE_KEY, JSON.stringify(parsed));
+    } catch {
+      // ignore write errors
+    }
+  }, [journey]);
+
+  const resolveTonePracticeSessionId = useCallback(async (node: PathNode): Promise<string | null> => {
+    if (!journey || node.type !== "tone_practice") return null;
+    const cached = node.pronunciationSessionId ?? tonePracticeSessionIds[node.id];
+    if (cached) return cached;
+    const pending = tonePracticeRequestRef.current[node.id];
+    if (pending) return pending;
+    const request = (async () => {
+      const res = await fetch(`/api/journey/${journey.id}/tone-practice`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ journeyNodeId: node.id }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.sessionId) {
+        saveTonePracticeSessionId(node.id, data.sessionId);
+        return data.sessionId as string;
+      }
+      setStoryClickError(typeof data?.error === "string" ? data.error : "Couldn't start pronunciation practice yet.");
+      return null;
+    })();
+    tonePracticeRequestRef.current[node.id] = request;
+    try { return await request; }
+    finally { delete tonePracticeRequestRef.current[node.id]; }
+  }, [journey, tonePracticeSessionIds, saveTonePracticeSessionId]);
+
   // ── Navigation handlers ───────────────────────────────────────────────────
 
   const handleStoryOpen = useCallback((node: PathNode) => {
@@ -515,11 +635,26 @@ export default function JourneyDetailPage() {
     router.push(`${appBase}/journey/${journey.id}/story-loading?journeyNodeId=${encodeURIComponent(node.id)}`);
   }, [journey, checkpointStoryIds, router, appBase]);
 
+  const handleTonePracticeOpen = useCallback(async (node: PathNode) => {
+    if (!journey || node.type !== "tone_practice") return;
+    setStoryClickError(null);
+    const sessionId = await resolveTonePracticeSessionId(node);
+    if (sessionId) {
+      router.push(
+        `/app/pronunciation/session/${sessionId}?journeyId=${encodeURIComponent(journey.id)}&journeyNodeId=${encodeURIComponent(node.id)}`,
+      );
+    }
+  }, [journey, resolveTonePracticeSessionId, router, appBase]);
+
   const handleNavigate = useCallback(async (node: PathNode) => {
     if (!journey) return;
     setStoryClickError(null);
     if (node.type === "story") {
       handleStoryOpen(node);
+      return;
+    }
+    if (node.type === "tone_practice") {
+      await handleTonePracticeOpen(node);
       return;
     }
     if (node.islandId) {
@@ -544,7 +679,7 @@ export default function JourneyDetailPage() {
           : `${appBase}/topic-islands/${data.islandId}?journeyFirst=1`,
       );
     }
-  }, [journey, handleStoryOpen, router, appBase]);
+  }, [journey, handleStoryOpen, handleTonePracticeOpen, router, appBase]);
 
   // Prefetch current story checkpoint on mount
   useEffect(() => {
@@ -555,6 +690,16 @@ export default function JourneyDetailPage() {
       }
     });
   }, [journey, currentNode, resolveCheckpointStoryId, router]);
+
+  // Prefetch current pronunciation checkpoint on mount
+  useEffect(() => {
+    if (!journey || !currentNode || currentNode.type !== "tone_practice") return;
+    void resolveTonePracticeSessionId(currentNode).then((sessionId) => {
+      if (sessionId) {
+        router.prefetch(`/app/pronunciation/session/${sessionId}?journeyId=${encodeURIComponent(journey.id)}&journeyNodeId=${encodeURIComponent(currentNode.id)}`);
+      }
+    });
+  }, [journey, currentNode, resolveTonePracticeSessionId, router, appBase]);
 
   // ── Render ────────────────────────────────────────────────────────────────
 
@@ -690,11 +835,18 @@ export default function JourneyDetailPage() {
                 <p className="mb-3 mt-1 text-[11px] text-gray-400">
                   {currentNode.type === "story"
                     ? currentNode.hint ?? "Story checkpoint"
-                    : `${currentNode.nameZh ?? "Mandarin vocab"} · ${currentNode.wordCount} words`}
+                    : currentNode.type === "tone_practice"
+                      ? currentNode.hint ?? "Pronunciation checkpoint"
+                      : `${currentNode.nameZh ?? "Mandarin vocab"} · ${currentNode.wordCount} words`}
                 </p>
                 {currentNode.type === "island" ? (
                   <button type="button" onClick={() => void handleNavigate(currentNode)} className="w-full rounded-xl bg-white py-2 text-xs font-black text-gray-900">
                     Continue →
+                  </button>
+                ) : currentNode.type === "tone_practice" ? (
+                  <button type="button" onClick={() => void handleTonePracticeOpen(currentNode)} className="flex w-full items-center justify-center gap-1 rounded-xl bg-white py-2 text-xs font-black text-gray-900">
+                    <Mic className="h-3 w-3" />
+                    Pronunciation checkpoint
                   </button>
                 ) : (
                   <button type="button" onClick={() => handleStoryOpen(currentNode)} className="flex w-full items-center justify-center gap-1 rounded-xl bg-white py-2 text-xs font-black text-gray-900">
@@ -744,11 +896,18 @@ export default function JourneyDetailPage() {
                     <p className="mt-1 text-[11px] text-gray-400">
                       {currentNode.type === "story"
                         ? currentNode.hint ?? "Story checkpoint"
-                        : `${currentNode.nameZh ?? "Mandarin vocab"} · ${currentNode.wordCount} words`}
+                        : currentNode.type === "tone_practice"
+                          ? currentNode.hint ?? "Pronunciation checkpoint"
+                          : `${currentNode.nameZh ?? "Mandarin vocab"} · ${currentNode.wordCount} words`}
                     </p>
                     {currentNode.type === "island" ? (
                       <button type="button" onClick={() => void handleNavigate(currentNode)} className="mt-4 w-full rounded-xl bg-white py-2.5 text-xs font-black text-gray-900 transition-colors hover:bg-gray-100">
                         Continue →
+                      </button>
+                    ) : currentNode.type === "tone_practice" ? (
+                      <button type="button" onClick={() => void handleTonePracticeOpen(currentNode)} className="mt-4 flex w-full items-center justify-center gap-1 rounded-xl bg-white py-2.5 text-xs font-black text-gray-900 transition-colors hover:bg-gray-100">
+                        <Mic className="h-3 w-3" />
+                        Pronunciation checkpoint
                       </button>
                     ) : (
                       <button type="button" onClick={() => handleStoryOpen(currentNode)} className="mt-4 flex w-full items-center justify-center gap-1 rounded-xl bg-white py-2.5 text-xs font-black text-gray-900 transition-colors hover:bg-gray-100">
@@ -766,12 +925,18 @@ export default function JourneyDetailPage() {
                       {comingUp.map((node) => (
                         <div key={node.id} className="flex items-center gap-2.5">
                           <div className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-gray-100">
-                            {node.type === "story" ? <BookOpen size={10} color="#fbbf24" /> : <Lock size={9} color="#d1d5db" />}
+                            {node.type === "story" ? (
+                              <BookOpen size={10} color="#fbbf24" />
+                            ) : node.type === "tone_practice" ? (
+                              <Mic size={10} color="#38bdf8" />
+                            ) : (
+                              <Lock size={9} color="#d1d5db" />
+                            )}
                           </div>
                           <div className="min-w-0">
                             <p className="truncate text-xs font-medium text-gray-500">{node.name}</p>
-                            <p className={`mt-0.5 text-[9px] ${node.type === "story" ? "text-amber-300" : "text-gray-300"}`}>
-                              {node.type === "story" ? "Story checkpoint" : `${node.wordCount} words`}
+                            <p className={`mt-0.5 text-[9px] ${node.type === "story" ? "text-amber-300" : node.type === "tone_practice" ? "text-sky-300" : "text-gray-300"}`}>
+                              {node.type === "story" ? "Story checkpoint" : node.type === "tone_practice" ? "Pronunciation checkpoint" : `${node.wordCount} words`}
                             </p>
                           </div>
                         </div>

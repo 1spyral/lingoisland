@@ -1,11 +1,11 @@
-import { BookMarked, Check } from 'lucide-react';
+import { BookMarked, Check, Mic } from 'lucide-react';
 
 export type MiniJourneyIsland = {
   id: string;
   position: number;
   /** Accept both column name variants from the codebase */
-  node_type?: 'island' | 'story';
-  type?: 'island' | 'story';
+  node_type?: 'island' | 'story' | 'tone_practice';
+  type?: 'island' | 'story' | 'tone_practice';
   completed_at?: string | null;
   /** Pre-resolved boolean also accepted (from PathNode) */
   completed?: boolean;
@@ -19,7 +19,9 @@ export function MiniNodeRail({ nodes }: { nodes: MiniJourneyIsland[] }) {
   return (
     <div className="flex items-center w-full">
       {nodes.map((node, i) => {
-        const isStory = (node.node_type ?? node.type) === 'story';
+        const nodeType = node.node_type ?? node.type;
+        const isStory = nodeType === 'story';
+        const isTonePractice = nodeType === 'tone_practice';
         const isDone = node.completed ?? !!node.completed_at;
         const isConnectorDone =
           isDone && i < nodes.length - 1 && !!(nodes[i + 1]?.completed ?? !!nodes[i + 1]?.completed_at);
@@ -27,7 +29,22 @@ export function MiniNodeRail({ nodes }: { nodes: MiniJourneyIsland[] }) {
         return (
           <div key={node.id} className="flex items-center flex-1 min-w-0">
             <div className="flex-1 flex justify-center">
-              {isStory ? (
+              {isTonePractice ? (
+                <div
+                  style={{
+                    width: 14,
+                    height: 14,
+                    borderRadius: 3,
+                    background: isDone ? '#38bdf8' : '#f3f4f6',
+                    border: `1.5px solid ${isDone ? '#0ea5e9' : '#e5e7eb'}`,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <Mic size={7} color={isDone ? 'white' : '#d1d5db'} />
+                </div>
+              ) : isStory ? (
                 <div
                   style={{
                     width: 14,

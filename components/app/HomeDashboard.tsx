@@ -15,6 +15,7 @@ import UpgradeModal from "@/components/app/UpgradeModal";
 import OnboardingNudgeBanner from "@/components/Onboarding/OnboardingNudgeBanner";
 import { useSubscription } from "@/hooks/useSubscription";
 import { STAGE_THRESHOLDS, STAGE_NAMES, STAGE_EMOJIS } from "@/lib/huahua";
+import { useProgressIslandSrc } from "@/lib/progressIslandImage";
 import { hskLabelForCefr } from "@/lib/levelBands";
 import {
   HSK_CARD_BORDER,
@@ -137,13 +138,14 @@ function CapybaraCard({
   const isComplete = safeStage === 5;
   const stageName = STAGE_NAMES[safeStage - 1];
   const stageEmoji = STAGE_EMOJIS[safeStage - 1];
+  const islandSrc = useProgressIslandSrc(safeStage);
 
   return (
     <DashCardShell id="progress-island-card">
       <div className="flex h-[200px] items-center justify-center bg-[var(--lingo-sky-pale)] px-2 sm:h-[220px]">
         <div className="relative h-full w-full">
           <Image
-            src={`/progress-islands/stage-${safeStage}.png`}
+            src={islandSrc}
             alt={`华华's island — Stage ${safeStage}`}
             fill
             className="object-contain"
