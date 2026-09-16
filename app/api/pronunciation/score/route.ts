@@ -1,13 +1,14 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { scoreWithSpeechSuper, SpeechSuperError, type SpeechSuperMode } from "@/lib/speechsuper/client";
-import { normalizeSpeechSuperResult, type CharacterScore } from "@/lib/pronunciation/normalizeScore";
+import { normalizeSpeechSuperResult } from "@/lib/pronunciation/normalizeScore";
 import { checkAndIncrementUsage } from "@/lib/pronunciation/rateLimit";
+import { recordCharacterAttempts } from "@/lib/pronunciation/weakSoundsStore";
+import { weakSyllablesFromCharacters, coerceIsolateTargets } from "@/lib/pronunciation/isolateTarget";
 
 export const dynamic = "force-dynamic";
 
 const MAX_AUDIO_BYTES = 15 * 1024 * 1024;
-const WEAK_SYLLABLE_THRESHOLD = 80;
 
 type UnitType = "word" | "sentence" | "syllable_drill";
 
@@ -15,19 +16,13 @@ function isAllowedUnitType(value: FormDataEntryValue | null): value is UnitType 
   return value === "word" || value === "sentence" || value === "syllable_drill";
 }
 
-function speechSuperModeFor(unitType: UnitType): SpeechSuperMode {
-  return unitType === "sentence" ? "sentence" : "word";
-}
-
-function weakSyllablesFrom(characters: CharacterScore[]) {
-  return characters
-    .filter((character) => character.score !== null && character.score < WEAK_SYLLABLE_THRESHOLD)
-    .map((character) => ({
-      syllable: character.hanzi,
-      pinyin: character.pinyin,
-      targetTone: character.targetTone,
-      score: character.score,
-    }));
+function speechSuperModeFor(unitType: UnitType, referenceText: string): SpeechSuperMode {
+  // SpeechSuper's word scorer accepts a single Hanzi only. Compound words
+  // still represent a word exercise in our product, but must use its
+  // sentence-capable scorer to avoid the one-character API limit.
+  return unitType === "sentence" || Array.from(referenceText.trim()).length > 1
+    ? "sentence"
+    : "word";
 }
 
 export async function POST(request: Request) {
@@ -107,7 +102,7 @@ export async function POST(request: Request) {
         attemptId: existingAttempt.id,
         score: existingAttempt.score,
         overallScore: existingAttempt.overall_score,
-        weakSyllables: existingAttempt.weak_syllables,
+        weakSyllables: coerceIsolateTargets(existingAttempt.weak_syllables),
       });
     }
 
@@ -123,13 +118,13 @@ export async function POST(request: Request) {
       appKey,
       secretKey,
       userId: user.id,
-      mode: speechSuperModeFor(unitType),
+      mode: speechSuperModeFor(unitType, targetText),
       referenceText: targetText.trim(),
       audio: new Blob([await audio.arrayBuffer()], { type: "audio/wav" }),
     });
 
     const normalized = normalizeSpeechSuperResult(raw);
-    const weakSyllables = weakSyllablesFrom(normalized.characters);
+    const weakSyllables = weakSyllablesFromCharacters(normalized.characters);
 
     const { count: attemptCount } = await supabase
       .from("pronunciation_attempts")
@@ -171,12 +166,26 @@ export async function POST(request: Request) {
           attemptId: raced.id,
           score: raced.score,
           overallScore: raced.overall_score,
-          weakSyllables: raced.weak_syllables,
+          weakSyllables: coerceIsolateTargets(raced.weak_syllables),
         });
       }
 
       console.error("[pronunciation/score] failed to record attempt", insertError);
       return NextResponse.json({ error: "Failed to record attempt" }, { status: 500 });
+    }
+
+    // Track after the attempt row exists so a lost insert never mutates
+    // weak-sound counts, and a raced duplicate doesn't double-count.
+    if (unitType === "sentence") {
+      try {
+        await recordCharacterAttempts(supabase, user.id, normalized.characters, {
+          hanzi: targetText.trim(),
+          pinyin: typeof targetPinyin === "string" ? targetPinyin : null,
+          english: null,
+        });
+      } catch (err) {
+        console.warn("[pronunciation/score] weak-sound tracking failed", err);
+      }
     }
 
     return NextResponse.json({

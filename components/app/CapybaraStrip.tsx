@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import { STAGE_THRESHOLDS } from "@/lib/huahua";
+import { useProgressIslandSrc } from "@/lib/progressIslandImage";
 const STAGE_LABELS = [
   "",
   "Bare land",
@@ -32,16 +33,17 @@ export default function CapybaraStrip({
     : 100;
 
   const isComplete = safeStage === 5;
+  const islandSrc = useProgressIslandSrc(safeStage);
 
   return (
     <div className="mb-4 flex items-center gap-3 rounded-xl border border-amber-100 bg-amber-50 p-3">
       {/* Stage island image */}
-      <div className="relative h-14 w-14 flex-shrink-0 overflow-hidden rounded-lg border border-amber-200">
+      <div className="relative h-14 w-14 flex-shrink-0 overflow-hidden rounded-lg border border-amber-200 bg-sky-50">
         <Image
-          src={`/progress-islands/stage-${safeStage}.png`}
+          src={islandSrc}
           alt={`华华's island — Stage ${safeStage}: ${STAGE_LABELS[safeStage]}`}
           fill
-          className="object-cover"
+          className="object-contain"
           sizes="56px"
         />
       </div>

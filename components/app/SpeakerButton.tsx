@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { playTextToSpeech } from "@/lib/utils/tts";
 import { useTTS } from "@/contexts/TTSContext";
 import { Volume2 } from "lucide-react";
@@ -12,6 +12,8 @@ interface SpeakerButtonProps {
   className?: string;
   /** When set, overrides profile TTS speed for this playback. */
   rate?: number;
+  /** Optional visible label (e.g. a Hanzi character) instead of the speaker icon. */
+  label?: ReactNode;
 }
 
 /**
@@ -23,6 +25,7 @@ export default function SpeakerButton({
   size = "md",
   className = "",
   rate: rateOverride,
+  label,
 }: SpeakerButtonProps) {
   const [isPlaying, setIsPlaying] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -76,12 +79,16 @@ export default function SpeakerButton({
         ${className}
       `}
       title={error || (isPlaying ? "Playing..." : "Play audio")}
-      aria-label="Play pronunciation"
+      aria-label={typeof label === "string" ? `Play ${label}` : "Play pronunciation"}
     >
-      <Volume2
-        size={iconSizes[size]}
-        className={isPlaying ? "animate-pulse" : ""}
-      />
+      {label != null ? (
+        <span className={isPlaying ? "animate-pulse" : ""}>{label}</span>
+      ) : (
+        <Volume2
+          size={iconSizes[size]}
+          className={isPlaying ? "animate-pulse" : ""}
+        />
+      )}
     </button>
   );
 }

@@ -74,55 +74,45 @@ export async function POST(request: Request) {
     // ---------- Build the journey plan ----------
     type IslandRow = { type: 'island'; position: number; stepOrder: number; name: string; zh: string | null; wordCount: number }
     type StoryRow  = { type: 'story';  position: number; stepOrder: number; name: string; hint: string }
+    type ToneRow   = { type: 'tone_practice'; position: number; stepOrder: number; name: string; hint: string }
 
-    let islandRows: IslandRow[]
-    let storyRows: StoryRow[]
-    let planTitle: string
+    // 11-node order: I1, T1, I2, S1, T2, I3, T3, I4, T4, I5, S2 — a tone_practice
+    // checkpoint before islands 2-5 (not island 1, which has no prior words yet)
+    // drills pronunciation on the words from the island just completed.
+    const ISLAND_POSITION_BY_STEP: Record<number, number> = { 1: 1, 2: 3, 3: 6, 4: 8, 5: 10 }
+    const TONE_POSITION_BY_AFTER_ISLAND: Record<number, number> = { 1: 2, 2: 5, 3: 7, 4: 9 }
+    const STORY_POSITION_BY_AFTER_ISLAND: Record<number, number> = { 2: 4, 5: 11 }
 
-    if (isA0Level(level)) {
+    const plan = isA0Level(level)
       // A0: fully fixed journey plan — no DeepSeek call, no generation latency.
-      const plan = getFixedA0JourneyPlan(topic)
-      planTitle = plan.journeyTitle || topic
-      islandRows = plan.islands
-        .sort((a, b) => a.position - b.position)
-        .map((island) => ({
-          type: 'island' as const,
-          // 7-node order: I1, I2, S1, I3, I4, I5, S2
-          position: island.position <= 2 ? island.position : island.position + 1,
-          stepOrder: island.position,
-          name: island.topic,
-          zh: island.zh,
-          wordCount: island.position === 1 ? 5 : 10,
-        }))
-      storyRows = plan.stories.map((story) => ({
-        type: 'story' as const,
-        position: story.afterIsland === 2 ? 3 : 7,
-        stepOrder: story.afterIsland === 2 ? 102 : 105,
-        name: story.title,
-        hint: story.hint,
+      ? getFixedA0JourneyPlan(topic)
+      : await generateJourneyPlan({ topic, why, level })
+
+    const planTitle = plan.journeyTitle || topic
+    const islandRows: IslandRow[] = plan.islands
+      .sort((a, b) => a.position - b.position)
+      .map((island) => ({
+        type: 'island' as const,
+        position: ISLAND_POSITION_BY_STEP[island.position] ?? island.position,
+        stepOrder: island.position,
+        name: island.topic,
+        zh: island.zh,
+        wordCount: island.position === 1 ? 5 : 10,
       }))
-    } else {
-      const plan = await generateJourneyPlan({ topic, why, level })
-      planTitle = plan.journeyTitle || topic
-      islandRows = plan.islands
-        .sort((a, b) => a.position - b.position)
-        .map((island) => ({
-          type: 'island' as const,
-          // 7-node order: I1, I2, S1, I3, I4, I5, S2
-          position: island.position <= 2 ? island.position : island.position + 1,
-          stepOrder: island.position,
-          name: island.topic,
-          zh: island.zh,
-          wordCount: island.position === 1 ? 5 : 10,
-        }))
-      storyRows = plan.stories.map((story) => ({
-        type: 'story' as const,
-        position: story.afterIsland === 2 ? 3 : 7,
-        stepOrder: story.afterIsland === 2 ? 102 : 105,
-        name: story.title,
-        hint: story.hint,
-      }))
-    }
+    const storyRows: StoryRow[] = plan.stories.map((story) => ({
+      type: 'story' as const,
+      position: STORY_POSITION_BY_AFTER_ISLAND[story.afterIsland] ?? 11,
+      stepOrder: story.afterIsland === 2 ? 102 : 105,
+      name: story.title,
+      hint: story.hint,
+    }))
+    const toneRows: ToneRow[] = [1, 2, 3, 4].map((afterIsland) => ({
+      type: 'tone_practice' as const,
+      position: TONE_POSITION_BY_AFTER_ISLAND[afterIsland],
+      stepOrder: 200 + afterIsland,
+      name: 'Pronunciation Practice',
+      hint: 'Practice the words from the island you just finished.',
+    }))
 
     // Public onboarding preview: generate a path without persisting until user signs in.
     if (!user) {
@@ -142,7 +132,7 @@ export async function POST(request: Request) {
             position: island.position,
             word_count: island.wordCount,
           })),
-          nodes: [...islandRows, ...storyRows]
+          nodes: [...islandRows, ...storyRows, ...toneRows]
             .sort((a, b) => a.position - b.position)
             .map((node) => ({
               id: `preview-node-${node.position}`,
@@ -228,6 +218,17 @@ export async function POST(request: Request) {
         story_idea: null,
         word_count: null,
         hint: story.hint,
+      })),
+      ...toneRows.map((tone) => ({
+        journey_id: journey.id,
+        step_order: tone.stepOrder,
+        position: tone.position,
+        node_type: tone.type,
+        name: tone.name,
+        zh: null,
+        story_idea: null,
+        word_count: null,
+        hint: tone.hint,
       })),
     ]
     const insertJourneyIslands = async () => {

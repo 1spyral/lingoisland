@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { pinyin } from "pinyin-pro";
 import { normalizeSpeechSuperResult } from "@/lib/pronunciation/normalizeScore";
-import { bandForScore, pickEncouragement } from "@/lib/pronunciation/encouragement";
+import { bandForScore, pickEncouragement, toneGlyph } from "@/lib/pronunciation/encouragement";
 import { abortPcmRecording, startPcmRecording, stopPcmRecording, type PcmRecorderHandle } from "@/lib/audio/recordPcm";
 
 type Mode = "word" | "sentence";
@@ -14,10 +14,6 @@ const STATUS_STYLES = {
   close: "border-orange-300 bg-orange-50",
   unavailable: "border-gray-200 bg-gray-50",
 };
-
-function toneGlyph(tone: number | null) {
-  return tone === 1 ? "→" : tone === 2 ? "↗" : tone === 3 ? "∨" : tone === 4 ? "↘" : "—";
-}
 
 function statusForScore(score: number | null) {
   return score === null
@@ -310,7 +306,12 @@ export default function ToneTestClient() {
                       {character.pinyin && <span className="text-sm text-[var(--lingo-text-muted)]">{character.pinyin}</span>}
                     </div>
                     <div className="flex items-center gap-3">
-                      <span className="text-sm text-[var(--lingo-text)]">target tone {toneGlyph(character.targetTone)} {character.targetTone ?? "—"}</span>
+                      <span className="text-sm text-[var(--lingo-text)]">
+                        target tone {toneGlyph(character.targetTone)} {character.targetTone ?? "—"}
+                        {character.sandhiApplied && character.citationTone != null
+                          ? ` (sandhi from ${character.citationTone})`
+                          : ""}
+                      </span>
                       <span className="text-sm font-bold text-[var(--lingo-navy)]">tone {character.score === null ? "—" : Math.round(character.score)}</span>
                     </div>
                   </div>

@@ -1,3 +1,8 @@
+/**
+ * Calmer coaching copy for the redesigned pronunciation product.
+ * Keeps the original band helpers for compatibility.
+ */
+
 export type ScoreBand = "strong" | "close" | "rough";
 
 export function bandForScore(score: number | null): ScoreBand | null {
@@ -7,34 +12,32 @@ export function bandForScore(score: number | null): ScoreBand | null {
 
 const ENCOURAGEMENT: Record<ScoreBand, string[]> = {
   strong: [
-    "正确！(Correct!) 🎉 Those tones landed beautifully.",
-    "好极了！(Amazing!) 华华 heard a really clear match there. 🦫",
-    "太棒了！(Great!) Your tone shapes sound very steady.",
+    "Nice — that landed clearly.",
+    "Great match. Your tones stayed steady.",
+    "That sounded natural.",
   ],
   close: [
-    "很接近！(So close!) Try letting the tone move a little more clearly.",
-    "不错！(Nice work!) One tiny tone adjustment and you'll have it. 🦫",
-    "继续！(Keep going!) The sound is there — give the tone a little more space.",
+    "Almost — one small adjustment will get it.",
+    "Close. Let's clean up one sound.",
+    "You're nearly there — give the tone a little more shape.",
   ],
   rough: [
-    "没关系！(No worries!) Let's try that one again, nice and slowly. 🦫",
-    "再来一次！(One more try!) Focus on the tone shape, not perfection.",
-    "慢慢来！(Take it easy!) Every recording is useful practice. 🎉",
+    "No worries — let's try that one again, slowly.",
+    "We'll fix this one sound at a time.",
+    "Take another pass — focus on the tone shape.",
   ],
 };
 
-/** Deterministically picks one encouragement line for a band, varied by a seed (e.g. attempt id length). */
 export function pickEncouragement(band: ScoreBand, seed: number): string {
   const lines = ENCOURAGEMENT[band];
   return lines[seed % lines.length];
 }
 
-/** Actionable, tone-shape-specific coaching — the one thing we can reliably say from a target tone number alone. */
 const TONE_SHAPE_TIPS: Record<1 | 2 | 3 | 4, string> = {
   1: "Keep this tone flat and steady the whole way through — no rise or fall.",
   2: "Let this tone rise clearly from low to high, like you're asking \"huh?\"",
-  3: "Let this tone dip low first, then come back up — it's closer to a first tone if it doesn't dip enough.",
-  4: "Make this tone fall sharply and quickly from high to low, like giving a firm command.",
+  3: "Let this tone dip low first, then come back up — if it stays high, it can sound like a 2nd tone.",
+  4: "Make this tone fall sharply and quickly from high to low, like a firm command.",
 };
 
 export function toneShapeTip(targetTone: number | null): string | null {
@@ -42,4 +45,23 @@ export function toneShapeTip(targetTone: number | null): string | null {
     return TONE_SHAPE_TIPS[targetTone];
   }
   return null;
+}
+
+export function toneName(tone: number | null | undefined): string {
+  if (tone === 1) return "1st tone";
+  if (tone === 2) return "2nd tone";
+  if (tone === 3) return "3rd tone";
+  if (tone === 4) return "4th tone";
+  return "this tone";
+}
+
+export function toneGlyph(tone: number | null | undefined) {
+  return tone === 1 ? "→" : tone === 2 ? "↗" : tone === 3 ? "∨" : tone === 4 ? "↘" : "—";
+}
+
+export function feedbackHeadline(band: ScoreBand | null): string {
+  if (band === "strong") return "Nice!";
+  if (band === "close") return "Almost!";
+  if (band === "rough") return "Let's fix one sound";
+  return "Here's your result";
 }

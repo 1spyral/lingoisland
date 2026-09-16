@@ -29,16 +29,12 @@ alter table public.journey_islands
   check (node_type in ('island', 'story', 'tone_practice'));
 
 -- ── pronunciation_profiles ───────────────────────────────────────────────────
--- One row per user: Flow 0.5's rolling pronunciation profile plus Flow 1's
--- placement/preferences.
+-- One row per user for pronunciation-specific progress only. Shared learner
+-- preferences belong to user_profiles and Journeys.
 create table if not exists public.pronunciation_profiles (
   user_id uuid primary key references auth.users(id) on delete cascade,
   overall_score numeric,
   weak_sounds jsonb not null default '[]'::jsonb,
-  hsk_level text,
-  topics text[] not null default '{}',
-  custom_topic text,
-  daily_minutes int,
   onboarded_at timestamptz,
   diagnostic_completed_at timestamptz,
   last_practiced_at timestamptz,

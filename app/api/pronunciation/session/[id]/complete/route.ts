@@ -40,11 +40,14 @@ export async function POST(_request: Request, { params }: { params: { id: string
     .update({ status: "completed", completed_at: new Date().toISOString() })
     .eq("id", params.id);
 
-  const { data: profile } = await supabase
-    .from("pronunciation_profiles")
-    .select("streak_count, streak_last_date")
-    .eq("user_id", user.id)
-    .maybeSingle();
+  const [{ data: profile }, { data: attempts }] = await Promise.all([
+    supabase
+      .from("pronunciation_profiles")
+      .select("streak_count, streak_last_date, overall_score")
+      .eq("user_id", user.id)
+      .maybeSingle(),
+    supabase.from("pronunciation_attempts").select("overall_score, unit_type").eq("session_id", params.id),
+  ]);
 
   const today = todayUtc();
   let streakCount = profile?.streak_count ?? 0;
@@ -58,15 +61,30 @@ export async function POST(_request: Request, { params }: { params: { id: string
     streakCount = 1;
   }
 
-  await supabase
-    .from("pronunciation_profiles")
-    .update({
+  // Blend this session's average into the rolling profile score so recent
+  // performance moves it without one noisy session swinging it wildly.
+  // (Per-character weak-sound tracking happens live in /api/pronunciation/score,
+  // not here — see lib/pronunciation/weakSoundsStore.ts.)
+  const scored = (attempts ?? [])
+    .filter((a) => a.unit_type === "sentence")
+    .map((a) => a.overall_score)
+    .filter((score): score is number => typeof score === "number");
+  const sessionAvg = scored.length > 0 ? scored.reduce((s, v) => s + v, 0) / scored.length : null;
+  const existingScore = typeof profile?.overall_score === "number" ? profile.overall_score : null;
+  const overallScore =
+    sessionAvg === null ? existingScore : existingScore === null ? sessionAvg : existingScore * 0.7 + sessionAvg * 0.3;
+
+  await supabase.from("pronunciation_profiles").upsert(
+    {
+      user_id: user.id,
       last_practiced_at: new Date().toISOString(),
       streak_count: streakCount,
       streak_last_date: today,
+      ...(overallScore !== null ? { overall_score: Math.round(overallScore * 10) / 10 } : {}),
       updated_at: new Date().toISOString(),
-    })
-    .eq("user_id", user.id);
+    },
+    { onConflict: "user_id" },
+  );
 
   return NextResponse.json({ streakCount });
 }
