@@ -13,12 +13,14 @@ import { useCharacterSet } from "@/contexts/CharacterSetContext";
 import { createClient } from "@/lib/supabase/browser";
 import { STAGE_THRESHOLDS, STAGE_NAMES, STAGE_EMOJIS, readHuahua } from "@/lib/huahua";
 import { daysUntil } from "@/lib/utils/hsk";
+import AppPageLoading from "@/components/app/AppPageLoading";
 import {
   hskFlashcardsDeck,
   useHskFlashcardsBasePath,
   useIsHskAppPreview,
 } from "@/components/hsk/hskFlashcardsPaths";
 import { HSK_APP_LABELS } from "@/lib/hsk-app-labels";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 interface Deck {
   id: string;
@@ -48,6 +50,7 @@ export default function HskFlashcardsListPage() {
   const basePath = useHskFlashcardsBasePath();
   const isHskApp = useIsHskAppPreview();
   const { convertText } = useCharacterSet();
+  const { t } = useLanguage();
   const [decks, setDecks] = useState<Deck[]>([]);
   const [summary, setSummary] = useState<Summary>({
     totalCards: 0,
@@ -196,11 +199,7 @@ export default function HskFlashcardsListPage() {
   };
 
   if (loading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center">
-        <div className="text-gray-600">Loading...</div>
-      </div>
-    );
+    return <AppPageLoading />;
   }
 
   const safeStage = Math.min(5, Math.max(1, huahuaStage || 1));
@@ -228,14 +227,14 @@ export default function HskFlashcardsListPage() {
     <div className="mx-auto min-h-screen max-w-6xl p-4 md:p-8">
       <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h1 className={`text-2xl md:text-3xl ${isHskApp ? "lingo-display text-[var(--lingo-navy)]" : "font-bold text-gray-900"}`}>
-          {isHskApp ? HSK_APP_LABELS.flashcards.title : "Flashcards"}
+          {isHskApp ? t(HSK_APP_LABELS.flashcards.title) : t("Flashcards")}
         </h1>
         <button
           onClick={() => setShowCreateModal(true)}
           className="flex items-center justify-center gap-2 rounded-lg bg-[#1a2332] px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-[#2d3a4d] md:px-6 md:py-3"
         >
           <Plus className="h-4 w-4" aria-hidden />
-          Create Deck
+          {t("Create Deck")}
         </button>
       </div>
 
@@ -306,23 +305,23 @@ export default function HskFlashcardsListPage() {
               <div className="text-xl font-extrabold leading-none text-[#1a2332]">
                 {summary.totalCards}
               </div>
-              <div className="text-[10px] font-semibold text-[#7c93a3]">cards</div>
+              <div className="text-[10px] font-semibold text-[#7c93a3]">{t("cards")}</div>
             </div>
           </div>
           <div className="flex flex-col gap-2">
             <div className="flex items-center gap-2">
               <span className="h-2.5 w-2.5 rounded-full bg-teal-500" />
               <span className="text-sm font-semibold text-[#1a2332]">
-                {summary.mastered} mastered
+                {summary.mastered} {t("mastered")}
               </span>
             </div>
             <div className="flex items-center gap-2">
               <span className="h-2.5 w-2.5 rounded-full bg-orange-500" />
-              <span className="text-sm font-semibold text-[#1a2332]">{summary.due} due today</span>
+              <span className="text-sm font-semibold text-[#1a2332]">{summary.due} {t("due today")}</span>
             </div>
             <div className="flex items-center gap-2">
               <span className="h-2.5 w-2.5 rounded-full bg-[#a9bdc9]" />
-              <span className="text-sm font-semibold text-[#1a2332]">{summary.new} new</span>
+              <span className="text-sm font-semibold text-[#1a2332]">{summary.new} {t("new")}</span>
             </div>
           </div>
         </div>
@@ -422,10 +421,10 @@ export default function HskFlashcardsListPage() {
       {showCreateModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
           <div className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-2xl border border-[#dbe7ee] bg-white p-5 shadow-xl md:p-8">
-            <h2 className="mb-6 text-2xl font-bold text-[#1a2332]">Create Deck</h2>
+            <h2 className="mb-6 text-2xl font-bold text-[#1a2332]">{t("Create Deck")}</h2>
             <form onSubmit={handleCreate}>
               <div className="mb-6">
-                <label className="mb-2 block text-sm font-medium text-[#1a2332]">Name</label>
+                <label className="mb-2 block text-sm font-medium text-[#1a2332]">{t("Name")}</label>
                 <input
                   type="text"
                   value={newDeckName}
@@ -435,7 +434,7 @@ export default function HskFlashcardsListPage() {
                   required
                   autoFocus
                 />
-                <p className="mt-1 text-xs text-[#7c93a3]">Decks are for Chinese practice only</p>
+                <p className="mt-1 text-xs text-[#7c93a3]">{t("Decks are for Chinese practice only")}</p>
               </div>
               <div className="flex gap-4">
                 <button
@@ -447,14 +446,14 @@ export default function HskFlashcardsListPage() {
                   className="flex-1 rounded-lg border border-[#dbe7ee] bg-white px-4 py-2 text-base text-[#1a2332] transition-colors hover:bg-gray-50"
                   disabled={creating}
                 >
-                  Cancel
+                  {t("Cancel")}
                 </button>
                 <button
                   type="submit"
                   disabled={creating || !newDeckName.trim()}
                   className="flex-1 rounded-lg bg-[#1a2332] px-4 py-2 text-base font-medium text-white transition-colors hover:bg-[#2d3a4d] disabled:opacity-50"
                 >
-                  {creating ? "Creating..." : "Create"}
+                  {creating ? t("Creating...") : t("Create")}
                 </button>
               </div>
             </form>

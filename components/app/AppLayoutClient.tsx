@@ -449,7 +449,7 @@ export default function AppLayoutClient({
                 setIsAccountModalOpen={setAccountModalOpen}
                 accountModalInitialTab={accountModalInitialTab}
               />
-              <main className="min-h-0 pt-16 pb-[calc(5rem+env(safe-area-inset-bottom,0px))] md:ml-64 md:pb-0 md:pt-0">
+              <main className="flex min-h-screen flex-col pt-16 pb-[calc(5rem+env(safe-area-inset-bottom,0px))] md:ml-64 md:pb-0 md:pt-0">
                 <OnboardingNudgeSlot />
                 {children}
               </main>

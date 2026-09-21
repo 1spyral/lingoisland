@@ -5,6 +5,8 @@ import { usePathname, useSearchParams } from "next/navigation";
 import { BsCardChecklist } from "react-icons/bs";
 import { TbHome, TbMenu2 } from "react-icons/tb";
 import { Map } from "lucide-react";
+import { useCharacterSet } from "@/contexts/CharacterSetContext";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 const iconClass = "h-6 w-6 shrink-0";
 
@@ -23,6 +25,8 @@ export default function MobileTabBar({
 }) {
   const pathname = usePathname() ?? "";
   const searchParams = useSearchParams();
+  const { t } = useLanguage();
+  const { convertText } = useCharacterSet();
   const isJourneyIsland =
     pathname.startsWith("/app/topic-islands/") &&
     searchParams.get("journeyFirst") === "1";
@@ -45,15 +49,15 @@ export default function MobileTabBar({
       <div className="mx-auto flex max-w-2xl items-stretch">
         <Link href="/app" className={tabStyles(homeActive)}>
           <TbHome className={iconClass} aria-hidden />
-          <span>Home</span>
+          <span>{convertText(t("Home"))}</span>
         </Link>
         <Link href="/app/quiz" className={tabStyles(reviewActive)}>
           <BsCardChecklist className={iconClass} aria-hidden />
-          <span>Review</span>
+          <span>{convertText(t("Review"))}</span>
         </Link>
         <Link href="/app/journey" className={tabStyles(journeyActive)}>
           <Map className={iconClass} aria-hidden strokeWidth={2} />
-          <span>Journey</span>
+          <span>{convertText(t("Journey"))}</span>
         </Link>
         <button
           type="button"
@@ -61,7 +65,7 @@ export default function MobileTabBar({
           className={tabStyles(moreActive)}
         >
           <TbMenu2 className={iconClass} aria-hidden />
-          <span>More</span>
+          <span>{convertText(t("More tab"))}</span>
         </button>
       </div>
     </nav>

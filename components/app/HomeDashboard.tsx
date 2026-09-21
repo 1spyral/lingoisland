@@ -23,6 +23,7 @@ import {
   HSK_CARD_SHADOW_HOVER,
 } from "@/lib/glossy-theme";
 import { ArrowRight, Flame, Layers, Plus } from "lucide-react";
+import AppPageLoading from "@/components/app/AppPageLoading";
 
 // ─── Types (unchanged) ────────────────────────────────────────────────────────
 
@@ -731,13 +732,7 @@ export default function HomeDashboard({
   }, []);
 
   if (loading) {
-    return (
-      <div className="flex min-h-full items-center justify-center bg-white">
-        <span className="text-sm text-[var(--lingo-text-muted)]">
-          {convertText(t("Loading..."))}
-        </span>
-      </div>
-    );
+    return <AppPageLoading label={convertText(t("Loading..."))} />;
   }
 
   const safeStageName = STAGE_NAMES[safeStage - 1];

@@ -12,6 +12,9 @@ import {
   Mic,
 } from "lucide-react";
 import { useElementWidth } from "@/hooks/useElementWidth";
+import AppPageLoading from "@/components/app/AppPageLoading";
+import { useLanguage } from "@/contexts/LanguageContext";
+import { useCharacterSet } from "@/contexts/CharacterSetContext";
 // ─── Map layout constants (must match /app/journey exactly) ───────────────────
 
 const BASE_W = 380;
@@ -197,6 +200,8 @@ function LabelCard({
   onNavigate: (node: PathNode) => void;
   scale?: number;
 }) {
+  const { t } = useLanguage();
+  const { convertText } = useCharacterSet();
   const padY = Math.round((isDesktop ? 12 : 10) * scale);
   const padX = Math.round((isDesktop ? 14 : 12) * scale);
   const titleSz = Math.round((isDesktop ? 14 : 12) * scale);
@@ -209,9 +214,9 @@ function LabelCard({
   if (isTonePractice && node.current) {
     return (
       <div style={{ background: "linear-gradient(135deg,#f0f9ff 0%,#eff6ff 100%)", border: "1px solid #7dd3fc", borderRadius: 14, padding: `${Math.round((isDesktop ? 10 : 9) * scale)}px ${Math.round((isDesktop ? 12 : 10) * scale)}px`, boxShadow: "0 10px 28px rgba(14,165,233,0.18)" }}>
-        <p style={{ fontSize: eyebrowSz, fontWeight: 900, color: "#0284c7", marginBottom: 2, textTransform: "uppercase", letterSpacing: "0.1em" }}>Pronunciation checkpoint</p>
-        <p style={{ fontSize: titleSz, fontWeight: 900, color: "#0c4a6e", lineHeight: 1.3 }}>{node.name}</p>
-        <p style={{ fontSize: bodySz, color: "#0369a1", marginTop: 4, fontWeight: 700 }}>Practice now →</p>
+        <p style={{ fontSize: eyebrowSz, fontWeight: 900, color: "#0284c7", marginBottom: 2, textTransform: "uppercase", letterSpacing: "0.1em" }}>{t("Pronunciation checkpoint")}</p>
+        <p style={{ fontSize: titleSz, fontWeight: 900, color: "#0c4a6e", lineHeight: 1.3 }}>{convertText(node.name)}</p>
+        <p style={{ fontSize: bodySz, color: "#0369a1", marginTop: 4, fontWeight: 700 }}>{t("Practice now →")}</p>
       </div>
     );
   }
@@ -219,9 +224,9 @@ function LabelCard({
   if (isTonePractice) {
     return (
       <div style={{ background: node.completed ? "#f0f9ff" : "rgba(240,249,255,0.9)", border: `1px solid ${node.completed ? "#bae6fd" : "#e0f2fe"}`, borderRadius: 12, padding: `${Math.round(8 * scale)}px ${Math.round(10 * scale)}px`, opacity: node.completed ? 1 : 0.8, boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}>
-        <p style={{ fontSize: eyebrowSz, fontWeight: 900, color: "#0ea5e9", marginBottom: 2, textTransform: "uppercase", letterSpacing: "0.1em" }}>Practice</p>
-        <p style={{ fontSize: compactSz, fontWeight: 700, color: "#374151", lineHeight: 1.3 }}>{node.name}</p>
-        {isDesktop && <p style={{ fontSize: bodySz, color: "#0284c7", marginTop: 3 }}>{node.completed ? "Practice again →" : "Pronunciation checkpoint"}</p>}
+        <p style={{ fontSize: eyebrowSz, fontWeight: 900, color: "#0ea5e9", marginBottom: 2, textTransform: "uppercase", letterSpacing: "0.1em" }}>{t("Practice")}</p>
+        <p style={{ fontSize: compactSz, fontWeight: 700, color: "#374151", lineHeight: 1.3 }}>{convertText(node.name)}</p>
+        {isDesktop && <p style={{ fontSize: bodySz, color: "#0284c7", marginTop: 3 }}>{node.completed ? t("Practice again →") : t("Pronunciation checkpoint")}</p>}
       </div>
     );
   }
@@ -229,9 +234,9 @@ function LabelCard({
   if (isStory && node.current) {
     return (
       <div style={{ background: "linear-gradient(135deg,#fff7ed 0%,#fffbeb 100%)", border: "1px solid #fdba74", borderRadius: 14, padding: `${Math.round((isDesktop ? 10 : 9) * scale)}px ${Math.round((isDesktop ? 12 : 10) * scale)}px`, boxShadow: "0 10px 28px rgba(245,158,11,0.18)" }}>
-        <p style={{ fontSize: eyebrowSz, fontWeight: 900, color: "#ea580c", marginBottom: 2, textTransform: "uppercase", letterSpacing: "0.1em" }}>Story checkpoint</p>
-        <p style={{ fontSize: titleSz, fontWeight: 900, color: "#7c2d12", lineHeight: 1.3 }}>{node.name}</p>
-        <p style={{ fontSize: bodySz, color: "#c2410c", marginTop: 4, fontWeight: 700 }}>Open now →</p>
+        <p style={{ fontSize: eyebrowSz, fontWeight: 900, color: "#ea580c", marginBottom: 2, textTransform: "uppercase", letterSpacing: "0.1em" }}>{t("Story checkpoint")}</p>
+        <p style={{ fontSize: titleSz, fontWeight: 900, color: "#7c2d12", lineHeight: 1.3 }}>{convertText(node.name)}</p>
+        <p style={{ fontSize: bodySz, color: "#c2410c", marginTop: 4, fontWeight: 700 }}>{t("Open now →")}</p>
       </div>
     );
   }
@@ -239,9 +244,9 @@ function LabelCard({
   if (isStory) {
     return (
       <div style={{ background: node.completed ? "#fffbeb" : "rgba(255,251,235,0.9)", border: `1px solid ${node.completed ? "#fde68a" : "#fef3c7"}`, borderRadius: 12, padding: `${Math.round(8 * scale)}px ${Math.round(10 * scale)}px`, opacity: node.completed ? 1 : 0.8, boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}>
-        <p style={{ fontSize: eyebrowSz, fontWeight: 900, color: "#f59e0b", marginBottom: 2, textTransform: "uppercase", letterSpacing: "0.1em" }}>Story</p>
-        <p style={{ fontSize: compactSz, fontWeight: 700, color: "#374151", lineHeight: 1.3 }}>{node.name}</p>
-        {isDesktop && <p style={{ fontSize: bodySz, color: "#d97706", marginTop: 3 }}>{node.completed ? "Read again →" : "Vocab checkpoint"}</p>}
+        <p style={{ fontSize: eyebrowSz, fontWeight: 900, color: "#f59e0b", marginBottom: 2, textTransform: "uppercase", letterSpacing: "0.1em" }}>{t("Story")}</p>
+        <p style={{ fontSize: compactSz, fontWeight: 700, color: "#374151", lineHeight: 1.3 }}>{convertText(node.name)}</p>
+        {isDesktop && <p style={{ fontSize: bodySz, color: "#d97706", marginTop: 3 }}>{node.completed ? t("Read again →") : t("Vocab checkpoint")}</p>}
       </div>
     );
   }
@@ -249,16 +254,16 @@ function LabelCard({
   if (node.current) {
     return (
       <div style={{ background: "#111827", borderRadius: 14, padding: `${padY}px ${padX}px`, boxShadow: "0 6px 24px rgba(0,0,0,0.22)" }}>
-        <p style={{ fontSize: eyebrowSz, fontWeight: 900, color: "#9ca3af", marginBottom: 2, textTransform: "uppercase", letterSpacing: "0.1em" }}>Up next</p>
-        <p style={{ fontSize: titleSz, fontWeight: 900, color: "white", lineHeight: 1.3, marginBottom: isDesktop ? 4 : 8 }}>{node.name}</p>
-        {isDesktop && node.nameZh && <p style={{ fontSize: bodySz, color: "#9ca3af", marginBottom: 7 }}>{node.nameZh}</p>}
-        {isDesktop && <div style={{ display: "flex", gap: 4, marginBottom: 10, flexWrap: "wrap" }}><Pill scale={scale}>{`${node.wordCount} words`}</Pill></div>}
+        <p style={{ fontSize: eyebrowSz, fontWeight: 900, color: "#9ca3af", marginBottom: 2, textTransform: "uppercase", letterSpacing: "0.1em" }}>{t("Up next")}</p>
+        <p style={{ fontSize: titleSz, fontWeight: 900, color: "white", lineHeight: 1.3, marginBottom: isDesktop ? 4 : 8 }}>{convertText(node.name)}</p>
+        {isDesktop && node.nameZh && <p style={{ fontSize: bodySz, color: "#9ca3af", marginBottom: 7 }}>{convertText(node.nameZh)}</p>}
+        {isDesktop && <div style={{ display: "flex", gap: 4, marginBottom: 10, flexWrap: "wrap" }}><Pill scale={scale}>{`${node.wordCount} ${t("words")}`}</Pill></div>}
         <button
           type="button"
           onClick={() => void onNavigate(node)}
           style={{ width: "100%", background: "white", color: "#111827", fontSize: Math.round(10 * scale), fontWeight: 900, padding: `${Math.round(6 * scale)}px 0`, borderRadius: 8, border: "none", cursor: "pointer" }}
         >
-          Continue →
+          {t("Continue →")}
         </button>
       </div>
     );
@@ -267,16 +272,16 @@ function LabelCard({
   if (node.completed) {
     return (
       <div style={{ background: "#f0fdfa", border: "1px solid #99f6e4", borderRadius: 12, padding: `${Math.round((isDesktop ? 10 : 8) * scale)}px ${Math.round((isDesktop ? 12 : 10) * scale)}px`, boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}>
-        <p style={{ fontSize: titleSz, fontWeight: 700, color: "#0f766e", lineHeight: 1.3 }}>{node.name}</p>
-        <p style={{ fontSize: bodySz, color: "#5eead4", marginTop: 2 }}>Review →</p>
+        <p style={{ fontSize: titleSz, fontWeight: 700, color: "#0f766e", lineHeight: 1.3 }}>{convertText(node.name)}</p>
+        <p style={{ fontSize: bodySz, color: "#5eead4", marginTop: 2 }}>{t("Review →")}</p>
       </div>
     );
   }
 
   return (
     <div style={{ background: "white", border: "1px solid #f3f4f6", borderRadius: 12, padding: `${Math.round((isDesktop ? 10 : 8) * scale)}px ${Math.round((isDesktop ? 12 : 10) * scale)}px`, opacity: 0.6, boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}>
-      <p style={{ fontSize: compactSz, fontWeight: 700, color: "#9ca3af", lineHeight: 1.3, marginBottom: isDesktop ? 5 : 0 }}>{node.name}</p>
-      {isDesktop && <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}><Pill light scale={scale}>{`${node.wordCount} words`}</Pill></div>}
+      <p style={{ fontSize: compactSz, fontWeight: 700, color: "#9ca3af", lineHeight: 1.3, marginBottom: isDesktop ? 5 : 0 }}>{convertText(node.name)}</p>
+      {isDesktop && <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}><Pill light scale={scale}>{`${node.wordCount} ${t("words")}`}</Pill></div>}
     </div>
   );
 }
@@ -418,6 +423,8 @@ export default function JourneyDetailPage() {
   const pathname = usePathname() ?? "";
   const appBase = pathname.startsWith("/hsk/app") ? "/hsk/app" : "/app";
   const journeyId = params?.id as string;
+  const { t } = useLanguage();
+  const { convertText } = useCharacterSet();
   const pageRef = useRef<HTMLDivElement | null>(null);
   const storyRequestRef = useRef<Record<string, Promise<string | null>>>({});
   const tonePracticeRequestRef = useRef<Record<string, Promise<string | null>>>({});
@@ -704,7 +711,7 @@ export default function JourneyDetailPage() {
   // ── Render ────────────────────────────────────────────────────────────────
 
   if (loading) {
-    return <div className="flex min-h-screen items-center justify-center text-gray-400">Loading…</div>;
+    return <AppPageLoading />;
   }
 
   if (!journey) {
@@ -712,13 +719,13 @@ export default function JourneyDetailPage() {
       <div className="flex min-h-screen items-center justify-center px-6">
         <div className="text-center">
           <p className="mb-4 text-4xl">🗺️</p>
-          <p className="text-gray-500">Journey not found.</p>
+          <p className="text-gray-500">{t("Journey not found.")}</p>
           <button
             type="button"
             onClick={() => router.push("/app/journey/past")}
             className="mt-4 rounded-xl bg-gray-900 px-5 py-2.5 text-sm font-black text-white"
           >
-            Back to My Journeys
+            {t("Back to My Journeys")}
           </button>
         </div>
       </div>
@@ -746,7 +753,7 @@ export default function JourneyDetailPage() {
               className="mb-2 flex items-center gap-1.5 text-xs font-semibold text-gray-400 transition-colors hover:text-gray-700"
             >
               <ArrowLeft size={13} />
-              {isCurriculumUnit ? "My HSK Path" : "My Journeys"}
+              {isCurriculumUnit ? t("My HSK Path") : t("My Journeys")}
             </button>
             <p className="text-[10px] font-black uppercase tracking-[0.18em] text-gray-400">
               {isCurriculumUnit
@@ -755,10 +762,10 @@ export default function JourneyDetailPage() {
                   : "Current unit"
                 : isCompleted
                   ? "Completed Journey"
-                  : "In Progress"}
+                  : t("In Progress")}
             </p>
-            <h1 className="mt-1 text-3xl font-black tracking-tight text-gray-900">{journey.topic}</h1>
-            <p className="mt-1 text-sm text-gray-500">{learnedWords} / {totalWords} words learned</p>
+            <h1 className="mt-1 text-3xl font-black tracking-tight text-gray-900">{convertText(journey.topic)}</h1>
+            <p className="mt-1 text-sm text-gray-500">{learnedWords} / {totalWords} {t("words learned")}</p>
           </div>
           <div className="flex items-center gap-2">
             {isCompleted && journey.completed_at && (
@@ -773,7 +780,7 @@ export default function JourneyDetailPage() {
                 onClick={() => router.push("/app/journey/create")}
                 className="flex items-center justify-center gap-1.5 rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-xs font-semibold text-gray-600 shadow-sm transition-colors hover:bg-gray-50"
               >
-                New Journey
+                {t("New Journey")}
               </button>
             )}
           </div>
@@ -830,28 +837,28 @@ export default function JourneyDetailPage() {
             {/* Mobile Up Next card */}
             {!wide && currentNode && (
               <div className="mt-4 rounded-2xl bg-gray-900 p-4">
-                <p className="mb-2 text-[10px] font-black uppercase tracking-[0.18em] text-gray-400">Up Next</p>
-                <p className="text-sm font-black text-white">{currentNode.name}</p>
+                <p className="mb-2 text-[10px] font-black uppercase tracking-[0.18em] text-gray-400">{t("Up Next")}</p>
+                <p className="text-sm font-black text-white">{convertText(currentNode.name)}</p>
                 <p className="mb-3 mt-1 text-[11px] text-gray-400">
                   {currentNode.type === "story"
-                    ? currentNode.hint ?? "Story checkpoint"
+                    ? currentNode.hint ?? t("Story checkpoint")
                     : currentNode.type === "tone_practice"
-                      ? currentNode.hint ?? "Pronunciation checkpoint"
-                      : `${currentNode.nameZh ?? "Mandarin vocab"} · ${currentNode.wordCount} words`}
+                      ? currentNode.hint ?? t("Pronunciation checkpoint")
+                      : `${currentNode.nameZh ? convertText(currentNode.nameZh) : "Mandarin vocab"} · ${currentNode.wordCount} ${t("words")}`}
                 </p>
                 {currentNode.type === "island" ? (
                   <button type="button" onClick={() => void handleNavigate(currentNode)} className="w-full rounded-xl bg-white py-2 text-xs font-black text-gray-900">
-                    Continue →
+                    {t("Continue →")}
                   </button>
                 ) : currentNode.type === "tone_practice" ? (
                   <button type="button" onClick={() => void handleTonePracticeOpen(currentNode)} className="flex w-full items-center justify-center gap-1 rounded-xl bg-white py-2 text-xs font-black text-gray-900">
                     <Mic className="h-3 w-3" />
-                    Pronunciation checkpoint
+                    {t("Pronunciation checkpoint")}
                   </button>
                 ) : (
                   <button type="button" onClick={() => handleStoryOpen(currentNode)} className="flex w-full items-center justify-center gap-1 rounded-xl bg-white py-2 text-xs font-black text-gray-900">
                     <BookOpen className="h-3 w-3" />
-                    Story checkpoint
+                    {t("Story checkpoint")}
                   </button>
                 )}
               </div>
@@ -866,9 +873,9 @@ export default function JourneyDetailPage() {
                 <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
                   <div className="mb-2 flex items-center gap-2">
                     <Map className="h-4 w-4 text-gray-400" />
-                    <p className="text-[10px] font-black uppercase tracking-[0.18em] text-gray-400">Journey</p>
+                    <p className="text-[10px] font-black uppercase tracking-[0.18em] text-gray-400">{t("Journey")}</p>
                   </div>
-                  <h2 className="text-lg font-black leading-tight text-gray-900">{journey.topic}</h2>
+                  <h2 className="text-lg font-black leading-tight text-gray-900">{convertText(journey.topic)}</h2>
                   {isCompleted && journey.completed_at && (
                     <div className="mt-2 flex items-center gap-1 text-[10px] text-teal-600">
                       <CheckCircle2 size={10} />
@@ -878,41 +885,41 @@ export default function JourneyDetailPage() {
                 </div>
 
                 <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
-                  <p className="mb-3 text-[10px] font-black uppercase tracking-[0.18em] text-gray-400">Progress</p>
+                  <p className="mb-3 text-[10px] font-black uppercase tracking-[0.18em] text-gray-400">{t("Progress")}</p>
                   <div className="mb-2 h-2 overflow-hidden rounded-full bg-gray-100">
                     <div className="h-full rounded-full bg-teal-500 transition-all duration-700" style={{ width: `${progressPct}%` }} />
                   </div>
                   <div className="mt-4 flex gap-2">
-                    <StatBox value={islandsDone} label="done" tone="teal" />
-                    <StatBox value={Math.max(0, islands.length - islandsDone)} label="left" tone="gray" />
-                    <StatBox value={learnedWords} label="words" tone="dark" />
+                    <StatBox value={islandsDone} label={t("done")} tone="teal" />
+                    <StatBox value={Math.max(0, islands.length - islandsDone)} label={t("left")} tone="gray" />
+                    <StatBox value={learnedWords} label={t("words")} tone="dark" />
                   </div>
                 </div>
 
                 {currentNode && (
                   <div className="rounded-2xl bg-gray-900 p-5 shadow-sm">
-                    <p className="mb-3 text-[10px] font-black uppercase tracking-[0.18em] text-gray-400">Up Next</p>
-                    <p className="text-sm font-black text-white">{currentNode.name}</p>
+                    <p className="mb-3 text-[10px] font-black uppercase tracking-[0.18em] text-gray-400">{t("Up Next")}</p>
+                    <p className="text-sm font-black text-white">{convertText(currentNode.name)}</p>
                     <p className="mt-1 text-[11px] text-gray-400">
                       {currentNode.type === "story"
-                        ? currentNode.hint ?? "Story checkpoint"
+                        ? currentNode.hint ?? t("Story checkpoint")
                         : currentNode.type === "tone_practice"
-                          ? currentNode.hint ?? "Pronunciation checkpoint"
-                          : `${currentNode.nameZh ?? "Mandarin vocab"} · ${currentNode.wordCount} words`}
+                          ? currentNode.hint ?? t("Pronunciation checkpoint")
+                          : `${currentNode.nameZh ? convertText(currentNode.nameZh) : "Mandarin vocab"} · ${currentNode.wordCount} ${t("words")}`}
                     </p>
                     {currentNode.type === "island" ? (
                       <button type="button" onClick={() => void handleNavigate(currentNode)} className="mt-4 w-full rounded-xl bg-white py-2.5 text-xs font-black text-gray-900 transition-colors hover:bg-gray-100">
-                        Continue →
+                        {t("Continue →")}
                       </button>
                     ) : currentNode.type === "tone_practice" ? (
                       <button type="button" onClick={() => void handleTonePracticeOpen(currentNode)} className="mt-4 flex w-full items-center justify-center gap-1 rounded-xl bg-white py-2.5 text-xs font-black text-gray-900 transition-colors hover:bg-gray-100">
                         <Mic className="h-3 w-3" />
-                        Pronunciation checkpoint
+                        {t("Pronunciation checkpoint")}
                       </button>
                     ) : (
                       <button type="button" onClick={() => handleStoryOpen(currentNode)} className="mt-4 flex w-full items-center justify-center gap-1 rounded-xl bg-white py-2.5 text-xs font-black text-gray-900 transition-colors hover:bg-gray-100">
                         <BookOpen className="h-3 w-3" />
-                        Story checkpoint
+                        {t("Story checkpoint")}
                       </button>
                     )}
                   </div>
@@ -920,7 +927,7 @@ export default function JourneyDetailPage() {
 
                 {comingUp.length > 0 && (
                   <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
-                    <p className="mb-3 text-[10px] font-black uppercase tracking-[0.18em] text-gray-400">Coming Up</p>
+                    <p className="mb-3 text-[10px] font-black uppercase tracking-[0.18em] text-gray-400">{t("Coming Up")}</p>
                     <div className="space-y-3">
                       {comingUp.map((node) => (
                         <div key={node.id} className="flex items-center gap-2.5">
@@ -934,9 +941,9 @@ export default function JourneyDetailPage() {
                             )}
                           </div>
                           <div className="min-w-0">
-                            <p className="truncate text-xs font-medium text-gray-500">{node.name}</p>
+                            <p className="truncate text-xs font-medium text-gray-500">{convertText(node.name)}</p>
                             <p className={`mt-0.5 text-[9px] ${node.type === "story" ? "text-amber-300" : node.type === "tone_practice" ? "text-sky-300" : "text-gray-300"}`}>
-                              {node.type === "story" ? "Story checkpoint" : node.type === "tone_practice" ? "Pronunciation checkpoint" : `${node.wordCount} words`}
+                              {node.type === "story" ? t("Story checkpoint") : node.type === "tone_practice" ? t("Pronunciation checkpoint") : `${node.wordCount} ${t("words")}`}
                             </p>
                           </div>
                         </div>
@@ -946,18 +953,18 @@ export default function JourneyDetailPage() {
                 )}
 
                 <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
-                  <p className="mb-3 text-[10px] font-black uppercase tracking-[0.18em] text-gray-400">Journey Stats</p>
+                  <p className="mb-3 text-[10px] font-black uppercase tracking-[0.18em] text-gray-400">{t("Journey Stats")}</p>
                   <div className="space-y-2 text-sm text-gray-600">
                     <div className="flex items-center justify-between">
-                      <span>Islands</span>
+                      <span>{t("Islands")}</span>
                       <span className="font-bold text-gray-900">{islands.length}</span>
                     </div>
                     <div className="flex items-center justify-between">
-                      <span>Total words</span>
+                      <span>{t("Total words")}</span>
                       <span className="font-bold text-gray-900">{totalWords}</span>
                     </div>
                     <div className="flex items-center justify-between">
-                      <span>Words learned</span>
+                      <span>{t("Words learned")}</span>
                       <span className="font-bold text-gray-900">{learnedWords}</span>
                     </div>
                   </div>

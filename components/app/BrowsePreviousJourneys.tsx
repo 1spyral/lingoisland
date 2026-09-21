@@ -3,9 +3,11 @@
 import { useRouter } from 'next/navigation';
 import { Clock } from 'lucide-react';
 import type { CompletedJourney } from '@/types/journey';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 export function BrowsePreviousJourneys({ pastJourneys }: { pastJourneys: CompletedJourney[] }) {
   const router = useRouter();
+  const { t } = useLanguage();
 
   if (!pastJourneys || pastJourneys.length === 0) return null;
 
@@ -18,12 +20,12 @@ export function BrowsePreviousJourneys({ pastJourneys }: { pastJourneys: Complet
       >
         <div className="flex items-center gap-2.5">
           <Clock size={14} className="text-gray-400" />
-          <span>My Journeys</span>
+          <span>{t("My Journeys")}</span>
           <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-gray-100 text-gray-500">
             {pastJourneys.length}
           </span>
         </div>
-        <span className="text-[11px] font-semibold text-gray-400">View all →</span>
+        <span className="text-[11px] font-semibold text-gray-400">{t("View all →")}</span>
       </button>
     </div>
   );

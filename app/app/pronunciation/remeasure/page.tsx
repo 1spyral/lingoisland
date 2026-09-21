@@ -5,6 +5,9 @@ import { useRouter } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
 import DiagnosticFlow from "@/components/app/Pronunciation/DiagnosticFlow";
+import AppPageLoading from "@/components/app/AppPageLoading";
+import { useLanguage } from "@/contexts/LanguageContext";
+import { useCharacterSet } from "@/contexts/CharacterSetContext";
 
 type CompareData = {
   day1Overall: number | null;
@@ -25,6 +28,8 @@ type CompareData = {
 
 export default function RemeasurePage() {
   const router = useRouter();
+  const { t } = useLanguage();
+  const { convertText } = useCharacterSet();
   const [mode, setMode] = useState<"flow" | "compare">("flow");
   const [compare, setCompare] = useState<CompareData | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -61,9 +66,7 @@ export default function RemeasurePage() {
   if (mode === "compare") {
     if (loadingCompare || !compare) {
       return (
-        <div className="flex min-h-[50vh] items-center justify-center text-[var(--lingo-text-muted)]">
-          Loading comparison…
-        </div>
+        <AppPageLoading label={convertText(t("Loading comparison…"))} />
       );
     }
 
@@ -75,8 +78,8 @@ export default function RemeasurePage() {
           <div className="relative mx-auto mb-4 h-36 w-36 overflow-hidden rounded-3xl">
             <Image src="/animation-photos/milestone-pronunciation.png" alt="" fill className="object-cover" />
           </div>
-          <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-[var(--lingo-blue)]">Progress check</p>
-          <h1 className="lingo-display mt-2 text-3xl font-bold text-[var(--lingo-navy)]">Look how you&apos;ve improved</h1>
+          <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-[var(--lingo-blue)]">{convertText(t("Progress check"))}</p>
+          <h1 className="lingo-display mt-2 text-3xl font-bold text-[var(--lingo-navy)]">{convertText(t("Look how you've improved"))}</h1>
           <div className="mt-6 flex items-end justify-center gap-3">
             <span className="text-2xl font-bold text-[var(--lingo-text-muted)]">
               {compare.day1Overall == null ? "—" : Math.round(compare.day1Overall)}
@@ -89,7 +92,7 @@ export default function RemeasurePage() {
           {compare.delta != null && (
             <p className="mt-2 text-sm font-semibold" style={{ color: compare.delta >= 0 ? "#0f766e" : "#9f1c14" }}>
               {compare.delta >= 0 ? "+" : ""}
-              {Math.round(compare.delta)} since your first check
+              {Math.round(compare.delta)} {convertText(t("since your first check"))}
             </p>
           )}
         </div>
@@ -99,7 +102,7 @@ export default function RemeasurePage() {
             className="mt-8 rounded-[24px] border bg-white p-5"
             style={{ borderColor: "var(--lingo-border)", boxShadow: "var(--lingo-shadow-card)" }}
           >
-            <h2 className="text-sm font-bold text-[var(--lingo-navy)]">Your biggest improvement</h2>
+            <h2 className="text-sm font-bold text-[var(--lingo-navy)]">{convertText(t("Your biggest improvement"))}</h2>
             <p className="mt-2 text-lg font-bold text-[var(--lingo-navy)]">{biggest.label}</p>
             <p className="text-sm text-[var(--lingo-text-muted)]">
               {biggest.before == null ? "—" : Math.round(biggest.before)} →{" "}
@@ -109,7 +112,7 @@ export default function RemeasurePage() {
         )}
 
         <div className="mt-5 rounded-[24px] border bg-white p-5" style={{ borderColor: "var(--lingo-border)" }}>
-          <h2 className="text-sm font-bold text-[var(--lingo-navy)]">Full breakdown</h2>
+          <h2 className="text-sm font-bold text-[var(--lingo-navy)]">{convertText(t("Full breakdown"))}</h2>
           <div className="mt-3 space-y-2">
             {compare.perTag.map((tag) => (
               <div key={tag.tag} className="flex items-center justify-between rounded-xl bg-[var(--lingo-sky-pale)] px-3 py-2.5">
@@ -129,11 +132,11 @@ export default function RemeasurePage() {
         </div>
 
         <div className="mt-5 rounded-[24px] border bg-white p-5" style={{ borderColor: "var(--lingo-border)" }}>
-          <h2 className="text-sm font-bold text-[var(--lingo-navy)]">Hear the difference</h2>
+          <h2 className="text-sm font-bold text-[var(--lingo-navy)]">{convertText(t("Hear the difference"))}</h2>
           <div className="mt-3 space-y-3">
             {compare.sentences.map((s) => (
               <div key={s.index} className="rounded-xl bg-[var(--lingo-sky-pale)] p-3">
-                <p className="text-sm font-bold text-[var(--lingo-navy)]">{s.hanzi}</p>
+                <p className="text-sm font-bold text-[var(--lingo-navy)]">{convertText(s.hanzi)}</p>
                 <p className="text-xs text-[var(--lingo-text-muted)]">{s.pinyin}</p>
                 <div className="mt-2 flex flex-wrap gap-2">
                   {s.day1AudioUrl ? (
@@ -142,10 +145,10 @@ export default function RemeasurePage() {
                       onClick={() => new Audio(s.day1AudioUrl!).play()}
                       className="rounded-lg bg-white px-3 py-1.5 text-xs font-bold text-[var(--lingo-navy)]"
                     >
-                      Day 1
+                      {convertText(t("Day 1"))}
                     </button>
                   ) : (
-                    <span className="text-xs text-[var(--lingo-text-muted)]">Day 1 audio unavailable</span>
+                    <span className="text-xs text-[var(--lingo-text-muted)]">{convertText(t("Day 1 audio unavailable"))}</span>
                   )}
                   {s.remeasureAudioUrl ? (
                     <button
@@ -153,7 +156,7 @@ export default function RemeasurePage() {
                       onClick={() => new Audio(s.remeasureAudioUrl!).play()}
                       className="rounded-lg bg-white px-3 py-1.5 text-xs font-bold text-[var(--lingo-navy)]"
                     >
-                      Today
+                      {convertText(t("Today"))}
                     </button>
                   ) : null}
                 </div>
@@ -163,16 +166,16 @@ export default function RemeasurePage() {
         </div>
 
         <div className="mt-5 rounded-[24px] border bg-white p-5" style={{ borderColor: "var(--lingo-border)" }}>
-          <h2 className="text-sm font-bold text-[var(--lingo-navy)]">What&apos;s next?</h2>
+          <h2 className="text-sm font-bold text-[var(--lingo-navy)]">{convertText(t("What's next?"))}</h2>
           {compare.nextWeakSounds.length > 0 ? (
             <p className="mt-2 text-sm text-[var(--lingo-text)]">
-              Your next challenge:{" "}
+              {convertText(t("Your next challenge:"))}{" "}
               <span className="font-bold">
-                {compare.nextWeakSounds.map((w) => w.pinyin ?? w.syllable).join(", ")}
+                {compare.nextWeakSounds.map((w) => w.pinyin ?? convertText(w.syllable)).join(", ")}
               </span>
             </p>
           ) : (
-            <p className="mt-2 text-sm text-[var(--lingo-text-muted)]">Keep up daily practice to lock in these gains.</p>
+            <p className="mt-2 text-sm text-[var(--lingo-text-muted)]">{convertText(t("Keep up daily practice to lock in these gains."))}</p>
           )}
           <div className="mt-4 flex flex-wrap gap-2">
             <button
@@ -181,10 +184,10 @@ export default function RemeasurePage() {
               className="rounded-2xl px-4 py-2.5 text-sm font-bold text-white"
               style={{ background: "var(--lingo-accent-gradient)" }}
             >
-              Practice this →
+              {convertText(t("Practice this →"))}
             </button>
             <Link href="/app/pronunciation" className="rounded-2xl border border-[var(--lingo-accent-border)] px-4 py-2.5 text-sm font-bold text-[var(--lingo-navy)]">
-              Back to pronunciation
+              {convertText(t("Back to pronunciation"))}
             </Link>
           </div>
         </div>

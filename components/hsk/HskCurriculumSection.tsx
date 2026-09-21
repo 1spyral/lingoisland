@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import HskCurriculumOverview from "@/components/hsk/HskCurriculumOverview";
 import HskPathSetupModal from "@/components/hsk/HskPathSetupModal";
+import AppPageLoading from "@/components/app/AppPageLoading";
 
 /**
  * "My HSK Path" surface. Renders the curriculum overview, or a blocking setup
@@ -36,11 +37,7 @@ export default function HskCurriculumSection({
   }, [check]);
 
   if (state === "loading") {
-    return (
-      <div className="flex min-h-[50vh] items-center justify-center text-sm text-[var(--lingo-text-muted)]">
-        Loading your path…
-      </div>
-    );
+    return <AppPageLoading label="Loading your path…" />;
   }
 
   if (state === "needs-setup") {

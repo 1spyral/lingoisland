@@ -39,6 +39,7 @@ import { useLearnLevel } from "@/components/app/LearnSequence/useLearnLevel";
 import { pickLearnWords } from "@/components/app/LearnSequence/types";
 import HuahuaChatCard from "@/components/app/HuahuaChatCard";
 import { hskLabelForCefr, PROFILE_LEVEL_OPTIONS } from "@/lib/levelBands";
+import AppPageLoading from "@/components/app/AppPageLoading";
 
 interface Sentence {
   id: string;
@@ -396,8 +397,8 @@ export default function TopicIslandDetailPage() {
             to see its meaning. Then scroll down and hit{" "}
             <span className="font-semibold text-white">
               {showOnboardingIslandBottom
-                ? "Start Flashcards"
-                : "Quiz me on this island"}
+                ? t("Start Flashcards")
+                : t("Quiz me on this island")}
             </span>{" "}
             to test how many you remember!
           </p>
@@ -844,39 +845,13 @@ export default function TopicIslandDetailPage() {
   }, [setEntries, setGlossaryActiveWordId]);
 
   if (loading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center">
-        <div className="flex items-center gap-3 text-gray-600">
-          <svg
-            className="h-5 w-5 animate-spin text-gray-400"
-            xmlns="http://www.w3.org/2000/svg"
-            fill="none"
-            viewBox="0 0 24 24"
-          >
-            <circle
-              className="opacity-25"
-              cx="12"
-              cy="12"
-              r="10"
-              stroke="currentColor"
-              strokeWidth="4"
-            />
-            <path
-              className="opacity-75"
-              fill="currentColor"
-              d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
-            />
-          </svg>
-          <span>Loading topic island...</span>
-        </div>
-      </div>
-    );
+    return <AppPageLoading label={t("Loading topic island...")} />;
   }
 
   if (!island) {
     return (
       <div className="flex min-h-screen items-center justify-center">
-        <div className="text-gray-600">Island not found</div>
+        <div className="text-gray-600">{t("Island not found")}</div>
       </div>
     );
   }
@@ -1380,8 +1355,8 @@ export default function TopicIslandDetailPage() {
                     className="text-sm font-medium text-gray-600 transition-colors hover:text-gray-900"
                   >
                     {journeyContext
-                      ? "← Back to Journey"
-                      : "← Back to Topic Islands"}
+                      ? `← ${t("Back to Journey")}`
+                      : `← ${t("Back to Topic Islands")}`}
                   </button>
                   {!isAnonymous && userTopicIslandCount > 1 && (
                     <button
@@ -1389,7 +1364,7 @@ export default function TopicIslandDetailPage() {
                       disabled={deleting}
                       className="text-sm font-medium text-red-600 transition-colors hover:text-red-800 disabled:opacity-50"
                     >
-                      {deleting ? "Deleting..." : "Delete Island"}
+                      {deleting ? t("Deleting...") : t("Delete Island")}
                     </button>
                   )}
                 </div>
@@ -1415,14 +1390,14 @@ export default function TopicIslandDetailPage() {
                       disabled={savingTitle || !editedTitle.trim()}
                       className="rounded-lg border border-gray-900 bg-gray-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-gray-800 disabled:opacity-50"
                     >
-                      {savingTitle ? "Saving..." : "Save"}
+                      {savingTitle ? t("Saving...") : t("Save")}
                     </button>
                     <button
                       onClick={handleCancelEditTitle}
                       disabled={savingTitle}
                       className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 disabled:opacity-50"
                     >
-                      Cancel
+                      {t("Cancel")}
                     </button>
                   </div>
                 ) : (
@@ -2898,7 +2873,7 @@ export default function TopicIslandDetailPage() {
 
                         <div className="mb-8 space-y-3">
                           <h4 className="text-sm font-semibold text-gray-700 mb-4">
-                            {isJourneyIsland ? "Breakdown:" : "Words reviewed:"}
+                            {isJourneyIsland ? t("Breakdown:") : t("Words reviewed:")}
                           </h4>
                           {quizWords.map((word) => {
                             const isCorrect = quizAnswers[word.id];
@@ -2948,8 +2923,8 @@ export default function TopicIslandDetailPage() {
                             className="rounded-lg border border-gray-300 bg-white px-6 py-3 text-base font-medium text-gray-700 transition-colors hover:bg-gray-50"
                           >
                             {journeyContext
-                              ? "Back to Journey"
-                              : "Back to Island"}
+                              ? t("Back to Journey")
+                              : t("Back to Island")}
                           </button>
                           {(!isJourneyIsland || !journeyQuizPassed) && (
                             <button

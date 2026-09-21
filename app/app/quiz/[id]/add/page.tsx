@@ -4,6 +4,8 @@ import { useEffect, useState, useRef } from "react";
 import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
 import { pinyin as pinyinPro } from "pinyin-pro";
+import { useLanguage } from "@/contexts/LanguageContext";
+import AppPageLoading from "@/components/app/AppPageLoading";
 
 interface QuizIsland {
   id: string;
@@ -22,6 +24,7 @@ export default function AddCardsPage() {
   const router = useRouter();
   const params = useParams();
   const quizIslandId = params.id as string;
+  const { t } = useLanguage();
 
   const [quizIsland, setQuizIsland] = useState<QuizIsland | null>(null);
   const [loading, setLoading] = useState(true);
@@ -71,12 +74,12 @@ export default function AddCardsPage() {
 
   const handleSubmit = async () => {
     if (!chinese.trim()) {
-      alert("Chinese field is required");
+      alert(t("Chinese field is required"));
       return;
     }
 
     if (!english.trim()) {
-      if (!confirm("English field is empty. Continue anyway?")) {
+      if (!confirm(t("English field is empty. Continue anyway?"))) {
         return;
       }
     }
@@ -130,39 +133,13 @@ export default function AddCardsPage() {
   };
 
   if (loading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-gray-50">
-        <div className="flex items-center gap-3 text-gray-600">
-          <svg
-            className="h-5 w-5 animate-spin text-gray-400"
-            xmlns="http://www.w3.org/2000/svg"
-            fill="none"
-            viewBox="0 0 24 24"
-          >
-            <circle
-              className="opacity-25"
-              cx="12"
-              cy="12"
-              r="10"
-              stroke="currentColor"
-              strokeWidth="4"
-            />
-            <path
-              className="opacity-75"
-              fill="currentColor"
-              d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
-            />
-          </svg>
-          <span>Loading...</span>
-        </div>
-      </div>
-    );
+    return <AppPageLoading />;
   }
 
   if (!quizIsland) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-gray-50">
-        <div className="text-gray-600">Quiz island not found</div>
+        <div className="text-gray-600">{t("Quiz island not found")}</div>
       </div>
     );
   }
@@ -177,13 +154,13 @@ export default function AddCardsPage() {
               href={`/app/quiz/${quizIslandId}`}
               className="mb-4 inline-block text-sm font-medium text-gray-600 transition-colors hover:text-gray-900"
             >
-              ← Back to Quiz Island
+              ← {t("Back to Quiz Island")}
             </Link>
             <h1 className="mb-2 text-4xl font-bold tracking-tight text-gray-900">
               {quizIsland.name}
             </h1>
             <p className="text-sm text-gray-600">
-              Chinese • Add cards
+              {t("Chinese • Add cards")}
             </p>
           </div>
         </div>
@@ -193,14 +170,14 @@ export default function AddCardsPage() {
           <div className="lg:col-span-2">
             <div className="rounded-xl border border-gray-200 bg-white p-8 shadow-sm">
               <h2 className="mb-6 text-xl font-semibold text-gray-900">
-                Add cards
+                {t("Add cards")}
               </h2>
 
               <div className="space-y-6">
                 {/* Chinese Field */}
                 <div>
                   <label className="mb-2 block text-sm font-medium text-gray-900">
-                    Chinese <span className="text-red-500">*</span>
+                    {t("Chinese")} <span className="text-red-500">*</span>
                   </label>
                   <input
                     ref={chineseInputRef}
@@ -216,7 +193,7 @@ export default function AddCardsPage() {
                 {/* English Field */}
                 <div>
                   <label className="mb-2 block text-sm font-medium text-gray-900">
-                    English
+                    {t("English")}
                   </label>
                   <input
                     type="text"
@@ -227,7 +204,7 @@ export default function AddCardsPage() {
                   />
                   {!english.trim() && (
                     <p className="mt-1 text-xs text-gray-500">
-                      English is optional but recommended
+                      {t("English is optional but recommended")}
                     </p>
                   )}
                 </div>
@@ -236,7 +213,7 @@ export default function AddCardsPage() {
                 <div>
                   <div className="mb-2 flex items-center justify-between">
                     <label className="block text-sm font-medium text-gray-900">
-                      Pinyin
+                      {t("Pinyin")}
                     </label>
                     <label className="flex cursor-pointer items-center gap-2 text-sm text-gray-600">
                       <input
@@ -245,7 +222,7 @@ export default function AddCardsPage() {
                         onChange={(e) => setAutoPinyin(e.target.checked)}
                         className="h-4 w-4 rounded border-gray-300 text-gray-900 focus:ring-gray-900"
                       />
-                      <span>Auto pinyin</span>
+                      <span>{t("Auto pinyin")}</span>
                     </label>
                   </div>
                   <input
@@ -253,7 +230,7 @@ export default function AddCardsPage() {
                     value={pinyin}
                     onChange={(e) => setPinyin(e.target.value)}
                     disabled={autoPinyin}
-                    placeholder={autoPinyin ? "Auto-generated" : "nǐ hǎo"}
+                    placeholder={autoPinyin ? t("Auto-generated") : "nǐ hǎo"}
                     className="w-full rounded-lg border border-gray-200 px-4 py-3 text-base transition-colors focus:border-gray-900 focus:outline-none focus:ring-2 focus:ring-gray-200 disabled:bg-gray-50 disabled:text-gray-500"
                   />
                 </div>
@@ -268,7 +245,7 @@ export default function AddCardsPage() {
                       className="h-4 w-4 rounded border-gray-300 text-gray-900 focus:ring-gray-900"
                     />
                     <span className="text-sm font-medium text-gray-900">
-                      Also create reverse card (English → Chinese)
+                      {t("Also create reverse card (English → Chinese)")}
                     </span>
                   </label>
                 </div>
@@ -280,7 +257,7 @@ export default function AddCardsPage() {
                     disabled={submitting || !chinese.trim()}
                     className="flex-1 rounded-lg border border-gray-900 bg-gray-900 px-6 py-3 text-base font-medium text-white transition-colors hover:bg-gray-800 disabled:opacity-50"
                   >
-                    {submitting ? "Adding..." : "Add card"}
+                    {submitting ? t("Adding...") : t("Add card")}
                   </button>
                 </div>
               </div>
@@ -291,24 +268,24 @@ export default function AddCardsPage() {
           <div className="lg:col-span-1">
             <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
               <h3 className="mb-4 text-lg font-semibold text-gray-900">
-                Quick info
+                {t("Quick info")}
               </h3>
               <div className="space-y-4 text-sm text-gray-600">
                 <div>
                   <div className="font-medium text-gray-900">
-                    Cards in this island:
+                    {t("Cards in this island:")}
                   </div>
                   <div className="mt-1">{quizIsland.card_count}</div>
                 </div>
                 <div>
                   <div className="font-medium text-gray-900">
-                    Reverse cards:
+                    {t("Reverse cards:")}
                   </div>
-                  <div className="mt-1">{createReverse ? "On" : "Off"}</div>
+                  <div className="mt-1">{createReverse ? t("On") : t("Off")}</div>
                 </div>
                 <div>
-                  <div className="font-medium text-gray-900">Auto pinyin:</div>
-                  <div className="mt-1">{autoPinyin ? "On" : "Off"}</div>
+                  <div className="font-medium text-gray-900">{t("Auto pinyin:")}</div>
+                  <div className="mt-1">{autoPinyin ? t("On") : t("Off")}</div>
                 </div>
               </div>
               <div className="mt-6 border-t border-gray-200 pt-4">
@@ -316,7 +293,7 @@ export default function AddCardsPage() {
                   Tips
                 </h4>
                 <ul className="space-y-2 text-xs text-gray-600">
-                  <li>• Chinese field is required</li>
+                  <li>• {t("Chinese field is required")}</li>
                   <li>• English helps with understanding</li>
                   <li>• Reverse cards create English → Chinese practice</li>
                   <li>• Form clears after each card for quick batch entry</li>

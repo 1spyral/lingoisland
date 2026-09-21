@@ -5,6 +5,9 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/browser";
 import { hskLabelForCefr } from "@/lib/levelBands";
+import AppPageLoading from "@/components/app/AppPageLoading";
+import { useLanguage } from "@/contexts/LanguageContext";
+import { useCharacterSet } from "@/contexts/CharacterSetContext";
 
 type TopicIsland = {
   id: string;
@@ -108,6 +111,8 @@ function normalizeWords(value: string) {
 
 export default function StoryWizard() {
   const router = useRouter();
+  const { t } = useLanguage();
+  const { convertText } = useCharacterSet();
   const supabase = createClient();
   const [step, setStep] = useState(1);
   const [topic, setTopic] = useState("");
@@ -260,11 +265,7 @@ export default function StoryWizard() {
   };
 
   if (loading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center">
-        <div className="text-gray-600">Loading...</div>
-      </div>
-    );
+    return <AppPageLoading />;
   }
 
   return (
@@ -275,17 +276,17 @@ export default function StoryWizard() {
             onClick={() => router.push("/app/stories")}
             className="text-sm font-medium text-gray-600 transition-colors hover:text-gray-900"
           >
-            ← Back to Stories
+            {convertText(t("← Back to Stories"))}
           </button>
         </div>
 
         <div className="mb-8 flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold text-gray-900">
-              Create a custom story
+              {convertText(t("Create a custom story"))}
             </h1>
             <p className="mt-2 text-sm text-gray-600">
-              Step {step} of 5
+              {convertText(t("Step"))} {step} {convertText(t("of"))} 5
             </p>
           </div>
           <div className="flex gap-2">
@@ -301,7 +302,7 @@ export default function StoryWizard() {
         </div>
         {pendingNotice && (
           <div className="mb-6 rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-700">
-            We saved your story request. Pick Topic Islands or skip to continue.
+            {convertText(t("We saved your story request. Pick Topic Islands or skip to continue."))}
           </div>
         )}
 
@@ -309,11 +310,10 @@ export default function StoryWizard() {
           {step === 1 && (
             <div>
               <h2 className="mb-4 text-2xl font-bold text-gray-900">
-                What best describes your level?
+                {convertText(t("What best describes your level?"))}
               </h2>
               <p className="mb-8 text-base text-gray-600">
-                Choose the row that feels closest. You can always change this
-                later.
+                {convertText(t("Choose the row that feels closest. You can always change this later."))}
               </p>
 
               <div className="space-y-4">
@@ -324,10 +324,10 @@ export default function StoryWizard() {
                   >
                     <div className="max-w-sm">
                       <h3 className="text-base font-semibold text-gray-900">
-                        {group.label} (HSK {group.hsk})
+                        {convertText(t(group.label))} (HSK {group.hsk})
                       </h3>
                       <p className="mt-1 text-sm text-gray-600">
-                        {group.description}
+                        {convertText(t(group.description))}
                       </p>
                     </div>
                     <div className="flex flex-wrap gap-2">
@@ -341,7 +341,9 @@ export default function StoryWizard() {
                           }}
                           className="rounded-full border border-gray-300 px-4 py-2 text-sm font-medium text-gray-900 transition-colors hover:border-gray-900 hover:bg-gray-50"
                         >
-                          {fineGrainLabel(lvl, group.hsk)}
+                          {lvl.endsWith("-") || lvl.endsWith("+")
+                            ? convertText(t(fineGrainLabel(lvl, group.hsk)))
+                            : fineGrainLabel(lvl, group.hsk)}
                         </button>
                       ))}
                     </div>
@@ -355,13 +357,13 @@ export default function StoryWizard() {
             <div className="space-y-6">
               <div>
                 <label className="mb-2 block text-sm font-medium text-gray-900">
-                  What do you want the story to be about?
+                  {convertText(t("What do you want the story to be about?"))}
                 </label>
                 <textarea
                   value={topic}
                   onChange={(e) => setTopic(e.target.value)}
                   rows={4}
-                  placeholder="Describe the vibe, setting, or scenario..."
+                  placeholder={convertText(t("Describe the vibe, setting, or scenario..."))}
                   className="w-full rounded-lg border border-gray-300 bg-white px-4 py-3 text-sm focus:border-gray-900 focus:outline-none"
                 />
               </div>
@@ -376,7 +378,7 @@ export default function StoryWizard() {
                 }
                 className="rounded-lg border border-gray-900 bg-white px-4 py-2 text-sm font-medium text-gray-900 transition-colors hover:bg-gray-50"
               >
-                Random suggestion
+                {convertText(t("Random suggestion"))}
               </button>
             </div>
           )}
@@ -384,17 +386,17 @@ export default function StoryWizard() {
           {step === 3 && (
             <div>
               <h2 className="mb-4 text-xl font-semibold text-gray-900">
-                Pick topic islands
+                {convertText(t("Pick topic islands"))}
               </h2>
               {topicIslands.length === 0 ? (
                 <div className="rounded-lg border border-dashed border-gray-300 bg-gray-50 p-6 text-sm text-gray-600">
-                  You don’t have any topic islands yet. Create one first.
+                  {convertText(t("You don't have any topic islands yet. Create one first."))}
                   <div className="mt-4">
                     <Link
                       href="/onboarding/journey"
                       className="inline-flex rounded-lg border border-gray-900 bg-white px-4 py-2 text-xs font-semibold uppercase tracking-wide text-gray-900 transition-colors hover:bg-gray-50"
                     >
-                      Create a Topic Island
+                      {convertText(t("Create a Topic Island"))}
                     </Link>
                   </div>
                 </div>
@@ -424,10 +426,10 @@ export default function StoryWizard() {
                         }`}
                       >
                         <h3 className="mb-2 text-lg font-semibold text-gray-900">
-                          {island.topic}
+                          {convertText(island.topic)}
                         </h3>
                         <p className="text-sm text-gray-600">
-                          {island.word_target} target words
+                          {island.word_target} {convertText(t("target words"))}
                         </p>
                       </button>
                     );
@@ -439,7 +441,7 @@ export default function StoryWizard() {
                 onClick={() => setStep(4)}
                 className="mt-6 rounded-lg border border-gray-300 bg-white px-4 py-2 text-xs font-semibold uppercase tracking-wide text-gray-700 transition-colors hover:bg-gray-50"
               >
-                Skip islands for now
+                {convertText(t("Skip islands for now"))}
               </button>
             </div>
           )}
@@ -448,7 +450,7 @@ export default function StoryWizard() {
             <div className="space-y-6">
               <div>
                 <label className="mb-2 block text-sm font-medium text-gray-900">
-                  Specific words (optional)
+                  {convertText(t("Specific words (optional)"))}
                 </label>
                 <div className="flex gap-2">
                   <input
@@ -460,7 +462,7 @@ export default function StoryWizard() {
                         addRequestedWords(wordInput);
                       }
                     }}
-                    placeholder="Type hanzi, pinyin, or English..."
+                    placeholder={convertText(t("Type hanzi, pinyin, or English..."))}
                     className="flex-1 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm focus:border-gray-900 focus:outline-none"
                   />
                   <button
@@ -468,11 +470,11 @@ export default function StoryWizard() {
                     onClick={() => addRequestedWords(wordInput)}
                     className="rounded-lg border border-gray-900 bg-white px-4 py-2 text-sm font-medium text-gray-900 transition-colors hover:bg-gray-50"
                   >
-                    Add
+                    {convertText(t("Add"))}
                   </button>
                 </div>
                 <p className="mt-2 text-xs text-gray-500">
-                  Separate words with commas or new lines.
+                  {convertText(t("Separate words with commas or new lines."))}
                 </p>
               </div>
               {requestedWords.length > 0 && (
@@ -482,7 +484,7 @@ export default function StoryWizard() {
                       key={word}
                       className="inline-flex items-center gap-2 rounded-full border border-gray-200 bg-gray-100 px-3 py-1 text-xs font-medium text-gray-700"
                     >
-                      {word}
+                      {convertText(word)}
                       <button
                         type="button"
                         onClick={() =>
@@ -505,10 +507,10 @@ export default function StoryWizard() {
             <div className="space-y-6">
               <div>
                 <label className="mb-2 block text-sm font-medium text-gray-900">
-                  Story length: ~{lengthChars} characters
+                  {convertText(t("Story length:"))} ~{lengthChars} {convertText(t("characters"))}
                 </label>
                 <div className="flex items-center gap-4">
-                  <span className="text-xs text-gray-500">Shorter</span>
+                  <span className="text-xs text-gray-500">{convertText(t("Shorter"))}</span>
                   <input
                     type="range"
                     min={50}
@@ -517,10 +519,10 @@ export default function StoryWizard() {
                     onChange={(e) => setLengthChars(Number(e.target.value))}
                     className="flex-1"
                   />
-                  <span className="text-xs text-gray-500">Longer</span>
+                  <span className="text-xs text-gray-500">{convertText(t("Longer"))}</span>
                 </div>
                 <p className="mt-2 text-xs text-gray-500">
-                  Current level: <span className="font-medium text-gray-900">{hskLabelForCefr(level)}</span>
+                  {convertText(t("Current level:"))} <span className="font-medium text-gray-900">{hskLabelForCefr(level)}</span>
                 </p>
               </div>
             </div>
@@ -535,7 +537,7 @@ export default function StoryWizard() {
               onClick={() => setError(null)}
               className="ml-2 underline"
             >
-              Try again
+              {convertText(t("Try again"))}
             </button>
           </div>
           ) : null}
@@ -547,7 +549,7 @@ export default function StoryWizard() {
               onClick={() => setStep((prev) => Math.max(1, prev - 1))}
               className="rounded-lg border border-gray-300 bg-white px-6 py-3 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50"
             >
-              Back
+              {convertText(t("Back"))}
             </button>
           )}
           {step === 1 && <div />}
@@ -558,7 +560,7 @@ export default function StoryWizard() {
               disabled={!canProceed}
               className="rounded-lg border border-gray-900 bg-gray-900 px-6 py-3 text-sm font-medium text-white transition-colors hover:bg-gray-800 disabled:opacity-50"
             >
-              Continue
+              {convertText(t("Continue"))}
             </button>
           ) : (
             <button
@@ -567,7 +569,7 @@ export default function StoryWizard() {
               disabled={submitting || !canProceed}
               className="rounded-lg border border-gray-900 bg-gray-900 px-6 py-3 text-sm font-medium text-white transition-colors hover:bg-gray-800 disabled:opacity-50"
             >
-              {submitting ? "Creating..." : "Create story"}
+              {convertText(t(submitting ? "Creating..." : "Create story"))}
             </button>
           )}
         </div>

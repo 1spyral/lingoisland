@@ -9,6 +9,7 @@ import { GlossyProgressBar, LearnEyebrow } from "./shell";
 import type { LearnIsland, LearnStep, LearnWord } from "./types";
 import { pickLearnWords } from "./types";
 import { useLearnLevel } from "./useLearnLevel";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 export { learnSequenceKey } from "./types";
 
@@ -33,6 +34,7 @@ export default function LearnSequence({
   userCefrLevel,
   onComplete,
 }: LearnSequenceProps) {
+  const { t } = useLanguage();
   const [step, setStep] = useState<LearnStep>("slideshow");
   const [mounted, setMounted] = useState(false);
   const learnLevel = useLearnLevel(island, userCefrLevel);
@@ -49,9 +51,9 @@ export default function LearnSequence({
       <header className="sticky top-0 z-10 border-b border-[var(--lingo-accent-border)] bg-white/95 backdrop-blur-sm">
         <div className="mx-auto flex max-w-3xl items-end justify-between gap-4 px-4 py-5 sm:px-6">
           <div>
-            <LearnEyebrow>Getting started</LearnEyebrow>
+            <LearnEyebrow>{t("Getting started")}</LearnEyebrow>
             <h1 className="lingo-display mt-1.5 text-[30px] leading-tight text-[var(--lingo-navy)] sm:text-[34px]">
-              Step {stepIndex + 1} of 3 — {STEP_LABELS[step]}
+              {t("Step")} {stepIndex + 1} {t("of")} 3 — {t(STEP_LABELS[step])}
             </h1>
           </div>
           <button
@@ -59,7 +61,7 @@ export default function LearnSequence({
             onClick={onComplete}
             className="mb-1 shrink-0 text-sm font-bold text-[var(--lingo-blue)] underline-offset-2 hover:text-[var(--lingo-navy)] hover:underline"
           >
-            Skip for now
+            {t("Skip for now")}
           </button>
         </div>
         <div className="mx-auto max-w-3xl px-4 pb-4 sm:px-6">

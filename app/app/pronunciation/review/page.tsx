@@ -8,6 +8,9 @@ import { ArrowLeft, MoreHorizontal, Target } from "lucide-react";
 import { scoreTier, type WeakSoundRow } from "@/lib/pronunciation/weakSoundTypes";
 import { guideForTone, primaryGuide, weakSoundLabel } from "@/lib/pronunciation/soundGuides";
 import { toneGlyph } from "@/lib/pronunciation/encouragement";
+import AppPageLoading from "@/components/app/AppPageLoading";
+import { useLanguage } from "@/contexts/LanguageContext";
+import { useCharacterSet } from "@/contexts/CharacterSetContext";
 
 type Bucket = "needs" | "improving" | "mastered";
 type Filter = "all" | Bucket;
@@ -34,6 +37,8 @@ function recentTime(iso: string) {
 
 export default function WeakSoundsReviewPage() {
   const router = useRouter();
+  const { t } = useLanguage();
+  const { convertText } = useCharacterSet();
   const [loading, setLoading] = useState(true);
   const [rows, setRows] = useState<WeakSoundRow[]>([]);
   const [updating, setUpdating] = useState<string | null>(null);
@@ -117,7 +122,7 @@ export default function WeakSoundsReviewPage() {
         href="/app/pronunciation"
         className="mb-4 inline-flex items-center gap-1.5 text-xs font-semibold text-[var(--lingo-text-muted)] hover:text-[var(--lingo-navy)]"
       >
-        <ArrowLeft size={13} /> Pronunciation
+        <ArrowLeft size={13} /> {convertText(t("Pronunciation"))}
       </Link>
 
       <div className="relative mb-6 h-44 overflow-hidden rounded-[28px] sm:h-52">
@@ -133,10 +138,10 @@ export default function WeakSoundsReviewPage() {
 
       <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-[var(--lingo-blue)]">Your sounds</p>
-          <h1 className="lingo-display mt-1 text-3xl font-bold text-[var(--lingo-navy)]">Sounds we&apos;re working on</h1>
+          <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-[var(--lingo-blue)]">{convertText(t("Your sounds"))}</p>
+          <h1 className="lingo-display mt-1 text-3xl font-bold text-[var(--lingo-navy)]">{convertText(t("Sounds we're working on"))}</h1>
           <p className="mt-1.5 max-w-md text-sm text-[var(--lingo-text-muted)]">
-            These are the patterns we&apos;ve noticed while you practice — temporary, and fixable.
+            {convertText(t("These are the patterns we've noticed while you practice — temporary, and fixable."))}
           </p>
         </div>
         {activeCount > 0 && (
@@ -147,7 +152,7 @@ export default function WeakSoundsReviewPage() {
             className="inline-flex items-center gap-1.5 rounded-2xl bg-[var(--lingo-navy)] px-4 py-2.5 text-xs font-bold text-white disabled:opacity-60"
           >
             <Target size={13} />
-            {starting ? "Preparing…" : "Practice my weak sounds"}
+            {convertText(t(starting ? "Preparing" : "Practice my weak sounds"))}
           </button>
         )}
       </div>
@@ -155,21 +160,21 @@ export default function WeakSoundsReviewPage() {
       {error && <p className="mb-4 text-sm text-red-600">{error}</p>}
 
       {loading ? (
-        <div className="flex min-h-[30vh] items-center justify-center text-[var(--lingo-text-muted)]">Loading…</div>
+        <AppPageLoading />
       ) : rows.length === 0 ? (
         <div
           className="flex flex-col items-center rounded-[28px] border bg-white px-6 py-12 text-center"
           style={{ borderColor: "var(--lingo-border)" }}
         >
           <p className="max-w-sm text-sm text-[var(--lingo-text-muted)]">
-            Nothing flagged yet. Keep practicing — anything you consistently miss will show up here.
+            {convertText(t("Nothing flagged yet. Keep practicing — anything you consistently miss will show up here."))}
           </p>
           <Link
             href="/app/pronunciation"
             className="mt-5 rounded-2xl px-4 py-2.5 text-sm font-bold text-white"
             style={{ background: "var(--lingo-accent-gradient)" }}
           >
-            Back to practice
+            {convertText(t("Back to practice"))}
           </Link>
         </div>
       ) : (
@@ -188,7 +193,7 @@ export default function WeakSoundsReviewPage() {
                       : "border border-[var(--lingo-accent-border)] bg-white text-[var(--lingo-navy)] hover:bg-[var(--lingo-sky-pale)]"
                   }`}
                 >
-                  {option.label}
+                  {convertText(t(option.label))}
                 </button>
               );
             })}
@@ -196,12 +201,12 @@ export default function WeakSoundsReviewPage() {
 
           {filtered.length === 0 ? (
             <p className="rounded-[22px] border bg-white px-5 py-8 text-center text-sm text-[var(--lingo-text-muted)]" style={{ borderColor: "var(--lingo-border)" }}>
-              Nothing in this filter yet.
+              {convertText(t("Nothing in this filter yet."))}
             </p>
           ) : (
             <>
               <p className="text-xs font-semibold text-[var(--lingo-text-muted)]">
-                Showing {visible.length} of {filtered.length} most recent
+                {convertText(t("Showing"))} {visible.length} {convertText(t("of"))} {filtered.length} {convertText(t("most recent"))}
               </p>
               <div className="flex flex-col gap-3">
                 {visible.map((w) => {
@@ -221,16 +226,16 @@ export default function WeakSoundsReviewPage() {
                             className="lingo-display flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-2xl text-lg"
                             style={{ background: tier.bg, color: tier.text, border: `1px solid ${tier.border}` }}
                           >
-                            {w.syllable}
+                            {convertText(w.syllable)}
                           </span>
                           <div>
                             <p className="text-sm font-bold text-[var(--lingo-navy)]">
-                              {weakSoundLabel(w.syllable, w.pinyin, w.target_tone)}
+                              {convertText(weakSoundLabel(w.syllable, w.pinyin, w.target_tone))}
                             </p>
                             <p className="text-xs text-[var(--lingo-text-muted)]">
                               {toneTitle ? `${toneTitle} · ` : ""}
-                              {w.pinyin ?? w.syllable} {toneGlyph(w.target_tone)}
-                              {bucket === "improving" ? " · Improving" : bucket === "mastered" ? " · Mastered" : ""}
+                              {w.pinyin ?? convertText(w.syllable)} {toneGlyph(w.target_tone)}
+                              {bucket === "improving" ? ` · ${convertText(t("Improving"))}` : bucket === "mastered" ? ` · ${convertText(t("Mastered"))}` : ""}
                             </p>
                           </div>
                         </div>
@@ -241,7 +246,7 @@ export default function WeakSoundsReviewPage() {
                                 href={`/app/pronunciation/deep-dive/${w.id}?from=/app/pronunciation/review`}
                                 className="rounded-xl border border-[var(--lingo-accent-border)] bg-white px-3 py-2 text-xs font-bold text-[var(--lingo-navy)]"
                               >
-                                Deep dive
+                                {convertText(t("Deep dive"))}
                               </Link>
                               <button
                                 type="button"
@@ -249,7 +254,7 @@ export default function WeakSoundsReviewPage() {
                                 onClick={() => void startFocus([w.id])}
                                 className="rounded-xl bg-[var(--lingo-navy)] px-3 py-2 text-xs font-bold text-white disabled:opacity-50"
                               >
-                                Practice →
+                                {convertText(t("Practice →"))}
                               </button>
                             </>
                           )}
@@ -267,13 +272,13 @@ export default function WeakSoundsReviewPage() {
                       </p>
                       <p className="mt-2 text-xs text-[var(--lingo-text-muted)]">
                         {w.consecutive_good > 0
-                          ? `${w.consecutive_good} good attempt${w.consecutive_good === 1 ? "" : "s"} in a row`
-                          : `Missed ${w.times_wrong} of ${w.times_seen}`}
-                        {w.last_score != null ? ` · last score ${Math.round(w.last_score)}` : ""}
+                          ? `${w.consecutive_good} ${convertText(t(w.consecutive_good === 1 ? "good attempt in a row" : "good attempts in a row"))}`
+                          : `${convertText(t("Missed"))} ${w.times_wrong} ${convertText(t("of"))} ${w.times_seen}`}
+                        {w.last_score != null ? ` · ${convertText(t("Score"))} ${Math.round(w.last_score)}` : ""}
                       </p>
                       {w.example_sentence && (
                         <div className="mt-3 rounded-2xl p-3" style={{ background: "var(--lingo-sky-pale)" }}>
-                          <p className="text-sm font-semibold text-[var(--lingo-navy)]">{w.example_sentence}</p>
+                          <p className="text-sm font-semibold text-[var(--lingo-navy)]">{convertText(w.example_sentence)}</p>
                           {(w.example_sentence_pinyin || w.example_sentence_english) && (
                             <p className="mt-1 text-xs text-[var(--lingo-text-muted)]">
                               {[w.example_sentence_pinyin, w.example_sentence_english].filter(Boolean).join(" · ")}
@@ -292,7 +297,7 @@ export default function WeakSoundsReviewPage() {
                             onClick={() => void setStatus(w.id, bucket === "mastered" ? "active" : "mastered")}
                             className="w-full rounded-lg px-3 py-2 text-left text-xs font-bold text-[var(--lingo-navy)] hover:bg-[var(--lingo-sky-pale)]"
                           >
-                            {bucket === "mastered" ? "Move back to active" : "Mark mastered"}
+                            {convertText(t(bucket === "mastered" ? "Move back to active" : "Mark mastered"))}
                           </button>
                         </div>
                       )}
@@ -306,7 +311,7 @@ export default function WeakSoundsReviewPage() {
                   onClick={() => setVisibleCount((count) => count + PAGE_SIZE)}
                   className="mx-auto rounded-2xl border border-[var(--lingo-accent-border)] bg-white px-4 py-2.5 text-xs font-bold text-[var(--lingo-navy)] hover:bg-[var(--lingo-sky-pale)]"
                 >
-                  Show {Math.min(PAGE_SIZE, hiddenCount)} more
+                  {convertText(t("Show {n} more").replace("{n}", String(Math.min(PAGE_SIZE, hiddenCount))))}
                 </button>
               )}
             </>

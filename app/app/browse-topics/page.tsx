@@ -1,11 +1,14 @@
 "use client";
 
-import { useEffect, useState, useMemo, useRef } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import { createClient } from "@/lib/supabase/browser";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { OceanBackground } from "@/components/OceanBackground";
-import { ChevronLeft, ChevronRight, Layers, Map } from "lucide-react";
+import { Layers, Map, Search } from "lucide-react";
+import AppPageLoading from "@/components/app/AppPageLoading";
+import { capybaraIslandSrcForTopic } from "@/lib/capybaraIslands";
+import { hskLabelForCefr } from "@/lib/levelBands";
 
 interface TrendingTopic {
   id: string;
@@ -34,6 +37,10 @@ const CATEGORIES = [
   "Unexpected problems",
 ];
 
+function topicArt(id: string, category: string) {
+  return capybaraIslandSrcForTopic(id, category);
+}
+
 export default function BrowseTopicsPage() {
   const router = useRouter();
   const supabase = createClient();
@@ -42,56 +49,19 @@ export default function BrowseTopicsPage() {
   const [topics, setTopics] = useState<TrendingTopic[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedCategory, setSelectedCategory] = useState("All");
+  const [search, setSearch] = useState("");
   const [visibleCount, setVisibleCount] = useState(40);
   const [previewTopic, setPreviewTopic] = useState<TrendingTopic | null>(null);
   const [choiceTopic, setChoiceTopic] = useState<TrendingTopic | null>(null);
-  const [canScrollLeft, setCanScrollLeft] = useState(false);
-  const [canScrollRight, setCanScrollRight] = useState(false);
-  const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     loadTopics();
   }, []);
 
-  useEffect(() => {
-    // Check scroll buttons after content is rendered
-    const timer = setTimeout(() => {
-      checkScrollButtons();
-    }, 100);
-    return () => clearTimeout(timer);
-  }, [topics, selectedCategory]);
-
-  const checkScrollButtons = () => {
-    const container = scrollContainerRef.current;
-    if (!container) return;
-
-    setCanScrollLeft(container.scrollLeft > 0);
-    setCanScrollRight(
-      container.scrollLeft < container.scrollWidth - container.clientWidth - 1
-    );
-  };
-
-  const scroll = (direction: "left" | "right") => {
-    const container = scrollContainerRef.current;
-    if (!container) return;
-
-    const scrollAmount = 200;
-    const newScrollLeft =
-      direction === "left"
-        ? container.scrollLeft - scrollAmount
-        : container.scrollLeft + scrollAmount;
-
-    container.scrollTo({ left: newScrollLeft, behavior: "smooth" });
-
-    // Update button states after scroll
-    setTimeout(checkScrollButtons, 100);
-  };
-
   const loadTopics = async () => {
     try {
       setLoading(true);
 
-      // Get latest week's topics
       const { data: latestWeek, error: weekError } = await supabase
         .from("trending_topics")
         .select("week_of")
@@ -105,7 +75,6 @@ export default function BrowseTopicsPage() {
         return;
       }
 
-      // Fetch all topics for that week
       const { data, error } = await supabase
         .from("trending_topics")
         .select("*")
@@ -124,16 +93,28 @@ export default function BrowseTopicsPage() {
     }
   };
 
-  // Filter and sort topics
   const filteredAndSortedTopics = useMemo(() => {
     let filtered = topics;
+    const q = search.trim().toLowerCase();
 
-    // Category filter
     if (selectedCategory !== "All") {
       filtered = filtered.filter((topic) => topic.category === selectedCategory);
     }
 
-    // Sort by rank (featured first, then rest)
+    if (q) {
+      filtered = filtered.filter((topic) => {
+        const haystack = [
+          topic.title_en,
+          topic.title_zh ?? "",
+          topic.category,
+          ...topic.tags,
+        ]
+          .join(" ")
+          .toLowerCase();
+        return haystack.includes(q);
+      });
+    }
+
     const sorted = [...filtered];
     sorted.sort((a, b) => {
       if (a.is_featured && !b.is_featured) return -1;
@@ -142,9 +123,9 @@ export default function BrowseTopicsPage() {
     });
 
     return sorted;
-  }, [topics, selectedCategory]);
+  }, [topics, selectedCategory, search]);
 
-  const featuredTopics = filteredAndSortedTopics.filter((t) => t.is_featured);
+  const featuredTopics = filteredAndSortedTopics.filter((topic) => topic.is_featured);
   const allTopics = filteredAndSortedTopics;
 
   const getTopicText = (topic: TrendingTopic) =>
@@ -166,174 +147,167 @@ export default function BrowseTopicsPage() {
   };
 
   if (loading) {
-    return (
-      <div className="relative min-h-screen px-6 py-4 md:px-16 md:py-8">
-        <OceanBackground />
-        <div className="relative z-10 flex min-h-[400px] items-center justify-center">
-          <div className="text-gray-600">{t("Loading topics...")}</div>
-        </div>
-      </div>
-    );
+    return <AppPageLoading label={t("Loading topics...")} />;
   }
 
   return (
-    <div className="relative min-h-screen px-6 py-4 md:px-16 md:py-8">
-      <OceanBackground />
-      <div className="relative z-10 mx-auto max-w-7xl">
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="mb-2 text-3xl font-bold text-gray-900 md:text-4xl">
-            {t("Browse Topics")}
-          </h1>
-          <p className="text-base text-gray-700 md:text-lg">
-            {t("Pick something people actually talk about → build an island or a full journey.")}
-          </p>
-        </div>
+    <div className="mx-auto max-w-[1120px] px-4 py-8 md:px-6">
+      <div className="mb-7">
+        <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-[var(--lingo-blue)]">
+          {t("Explore & Learn")}
+        </p>
+        <h1 className="lingo-display mt-1 max-w-2xl text-3xl font-bold text-[var(--lingo-navy)] sm:text-4xl">
+          {t("What do you want to talk about today?")}
+        </h1>
+        <p className="mt-2 max-w-lg text-sm leading-relaxed text-[var(--lingo-text-muted)]">
+          {t("Find topics that match your interests, or discover something new.")}
+        </p>
+      </div>
 
-        {/* Category Filter */}
-        <div className="mb-8 space-y-3 rounded-xl border border-gray-200 bg-white p-5 shadow-sm md:p-6">
-          {/* Header */}
-          <div>
-            <h3 className="text-sm font-semibold text-gray-900">{t("Filter by category")}</h3>
-            <p className="text-xs text-gray-600">{t("Select a category to narrow your results")}</p>
-          </div>
-          
-          {/* Category Chips with Navigation - Mobile Scrollable */}
-          <div className="relative">
-            {/* Left Arrow */}
-            {canScrollLeft && (
-              <button
-                onClick={() => scroll("left")}
-                className="absolute left-0 top-1/2 z-10 -translate-y-1/2 rounded-full border border-gray-300 bg-white p-2 shadow-md transition-all hover:border-gray-900 hover:shadow-lg"
-                aria-label="Scroll left"
-              >
-                <ChevronLeft className="h-4 w-4 text-gray-700" />
-              </button>
-            )}
+      <div className="relative mb-5">
+        <Search
+          className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--lingo-text-muted)]"
+          aria-hidden
+        />
+        <input
+          value={search}
+          onChange={(e) => {
+            setSearch(e.target.value);
+            setVisibleCount(40);
+          }}
+          placeholder={t("Search topics, tags, or categories…")}
+          className="w-full rounded-2xl border bg-white py-3 pl-11 pr-4 text-sm text-[var(--lingo-text)] placeholder:text-[var(--lingo-text-muted)] focus:border-[var(--lingo-blue)] focus:outline-none"
+          style={{
+            borderColor: "var(--lingo-border)",
+            boxShadow: "var(--lingo-shadow-card)",
+          }}
+        />
+      </div>
 
-            {/* Scrollable Container */}
-            <div
-              ref={scrollContainerRef}
-              onScroll={checkScrollButtons}
-              className="overflow-x-auto pb-2 scrollbar-hide"
+      <div className="mb-8 flex flex-wrap gap-2">
+        {CATEGORIES.map((cat) => {
+          const active = selectedCategory === cat;
+          return (
+            <button
+              key={cat}
+              type="button"
+              onClick={() => {
+                setSelectedCategory(cat);
+                setVisibleCount(40);
+              }}
+              className={`rounded-full px-4 py-2 text-sm font-semibold transition-colors ${
+                active
+                  ? "bg-[var(--lingo-navy)] text-white"
+                  : "border bg-white text-[var(--lingo-navy)] hover:bg-[var(--lingo-sky-pale)]"
+              }`}
+              style={active ? undefined : { borderColor: "var(--lingo-border)" }}
+            >
+              {t(cat)}
+            </button>
+          );
+        })}
+      </div>
+
+      {featuredTopics.length > 0 && selectedCategory === "All" && !search.trim() && (
+        <section className="mb-10">
+          <div className="mb-4 flex items-center gap-2">
+            <h2 className="lingo-display text-xl font-bold text-[var(--lingo-navy)]">
+              {t("Trending this week")}
+            </h2>
+            <span
+              className="rounded-full px-2.5 py-1 text-[11px] font-bold"
               style={{
-                scrollbarWidth: "none",
-                msOverflowStyle: "none",
+                background: "#e7f7f5",
+                color: "#0f766e",
+                border: "1px solid #99f6e4",
               }}
             >
-              <div className="flex gap-2 px-8">
-                {CATEGORIES.map((cat) => (
-                  <button
-                    key={cat}
-                    onClick={() => setSelectedCategory(cat)}
-                    className={`whitespace-nowrap rounded-full border px-4 py-2 text-sm font-medium transition-all ${
-                      selectedCategory === cat
-                        ? "border-gray-900 bg-gray-900 text-white shadow-sm"
-                        : "border-gray-300 bg-white text-gray-700 hover:border-gray-900 hover:shadow-sm"
-                    }`}
-                  >
-                    {t(cat)}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Right Arrow */}
-            {canScrollRight && (
-              <button
-                onClick={() => scroll("right")}
-                className="absolute right-0 top-1/2 z-10 -translate-y-1/2 rounded-full border border-gray-300 bg-white p-2 shadow-md transition-all hover:border-gray-900 hover:shadow-lg"
-                aria-label="Scroll right"
-              >
-                <ChevronRight className="h-4 w-4 text-gray-700" />
-              </button>
-            )}
+              {t("Trending")}
+            </span>
           </div>
-        </div>
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {featuredTopics.slice(0, 12).map((topic) => (
+              <TopicCard
+                key={topic.id}
+                topic={topic}
+                onSelect={handleSelectTopic}
+                onPreview={setPreviewTopic}
+                showFeaturedBadge
+                isChineseMode={isChineseMode}
+                t={t}
+              />
+            ))}
+          </div>
+        </section>
+      )}
 
-        {/* Featured This Week */}
-        {featuredTopics.length > 0 && selectedCategory === "All" && (
-          <div className="mb-12">
-            <h2 className="mb-4 text-2xl font-bold text-gray-900">{t("Trending this week")}</h2>
-            <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
-              {featuredTopics.slice(0, 12).map((topic) => (
+      <section>
+        <h2 className="lingo-display mb-4 text-xl font-bold text-[var(--lingo-navy)]">
+          {selectedCategory !== "All" || search.trim() ? t("Results") : t("All topics")}
+        </h2>
+
+        {filteredAndSortedTopics.length === 0 ? (
+          <div
+            className="rounded-[28px] border bg-white px-6 py-12 text-center"
+            style={{
+              borderColor: "var(--lingo-border)",
+              boxShadow: "var(--lingo-shadow-card)",
+            }}
+          >
+            <p className="text-sm text-[var(--lingo-text-muted)]">
+              {t("No topics found. Try adjusting your filters.")}
+            </p>
+          </div>
+        ) : (
+          <>
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+              {allTopics.slice(0, visibleCount).map((topic) => (
                 <TopicCard
                   key={topic.id}
                   topic={topic}
                   onSelect={handleSelectTopic}
                   onPreview={setPreviewTopic}
-                  showFeaturedBadge
                   isChineseMode={isChineseMode}
                   t={t}
                 />
               ))}
             </div>
-          </div>
-        )}
 
-        {/* All Topics */}
-        <div>
-          <h2 className="mb-4 text-2xl font-bold text-gray-900">
-            {selectedCategory !== "All" ? t("Results") : t("All topics")}
-          </h2>
-
-          {filteredAndSortedTopics.length === 0 ? (
-            <div className="rounded-xl border-2 border-gray-300 bg-white p-12 text-center">
-              <p className="text-gray-600">{t("No topics found. Try adjusting your filters.")}</p>
-            </div>
-          ) : (
-            <>
-              <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
-                {allTopics.slice(0, visibleCount).map((topic) => (
-                  <TopicCard
-                    key={topic.id}
-                    topic={topic}
-                    onSelect={handleSelectTopic}
-                    onPreview={setPreviewTopic}
-                    isChineseMode={isChineseMode}
-                    t={t}
-                  />
-                ))}
+            {visibleCount < allTopics.length && (
+              <div className="mt-8 text-center">
+                <button
+                  type="button"
+                  onClick={() => setVisibleCount((prev) => prev + 40)}
+                  className="rounded-2xl bg-[var(--lingo-navy)] px-6 py-3 text-sm font-bold text-white transition-colors hover:bg-[var(--lingo-navy-soft)]"
+                >
+                  {t("Load more")} ({allTopics.length - visibleCount} {t("remaining")})
+                </button>
               </div>
-
-              {/* Load More */}
-              {visibleCount < allTopics.length && (
-                <div className="mt-8 text-center">
-                  <button
-                    onClick={() => setVisibleCount((prev) => prev + 40)}
-                    className="rounded-lg border-2 border-gray-900 bg-white px-6 py-3 font-bold text-gray-900 transition-colors hover:bg-gray-50"
-                  >
-                    {t("Load more")} ({allTopics.length - visibleCount} {t("remaining")})
-                  </button>
-                </div>
-              )}
-            </>
-          )}
-        </div>
-
-        {/* Preview Modal */}
-        {previewTopic && (
-          <PreviewModal
-            topic={previewTopic}
-            onClose={() => setPreviewTopic(null)}
-            onSelect={handleSelectTopic}
-            isChineseMode={isChineseMode}
-            t={t}
-          />
+            )}
+          </>
         )}
+      </section>
 
-        {/* Island vs Journey choice */}
-        {choiceTopic && (
-          <PathChoiceModal
-            topic={choiceTopic}
-            onClose={() => setChoiceTopic(null)}
-            onCreateIsland={handleCreateIsland}
-            onCreateJourney={handleCreateJourney}
-            isChineseMode={isChineseMode}
-            t={t}
-          />
-        )}
-      </div>
+      {previewTopic && (
+        <PreviewModal
+          topic={previewTopic}
+          onClose={() => setPreviewTopic(null)}
+          onSelect={handleSelectTopic}
+          isChineseMode={isChineseMode}
+          t={t}
+        />
+      )}
+
+      {choiceTopic && (
+        <PathChoiceModal
+          topic={choiceTopic}
+          onClose={() => setChoiceTopic(null)}
+          onCreateIsland={handleCreateIsland}
+          onCreateJourney={handleCreateJourney}
+          isChineseMode={isChineseMode}
+          t={t}
+        />
+      )}
     </div>
   );
 }
@@ -358,65 +332,101 @@ function TopicCard({
     isChineseMode && topic.title_zh ? topic.title_en : topic.title_zh;
 
   return (
-    <div className="group relative flex flex-col rounded-xl border border-gray-200 bg-white p-5 shadow-sm transition-all hover:border-gray-900 hover:shadow-md">
-      {/* Featured Badge */}
-      {showFeaturedBadge && topic.is_featured && (
-        <div className="absolute -top-2 -right-2 rounded-full border-2 border-cyan-400 bg-cyan-100 px-3 py-1 text-xs font-bold uppercase tracking-wide text-cyan-900">
-          {t("Trending")}
+    <div
+      className="group flex flex-col overflow-hidden rounded-[28px] border bg-white transition-[transform,box-shadow] duration-200 hover:-translate-y-0.5 motion-reduce:transition-none motion-reduce:hover:translate-y-0"
+      style={{
+        borderColor: "var(--lingo-border)",
+        boxShadow: "var(--lingo-shadow-card)",
+      }}
+    >
+      <div className="relative aspect-[16/10] overflow-hidden bg-[var(--lingo-sky-pale)]">
+        <div className="relative h-full w-full px-3 py-2 transition-transform duration-300 group-hover:scale-[1.02] motion-reduce:transition-none motion-reduce:group-hover:scale-100">
+          <Image
+            src={topicArt(topic.id, topic.category)}
+            alt=""
+            fill
+            className="object-contain"
+            sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
+          />
         </div>
-      )}
-
-      {/* Title */}
-      <div className="mb-3">
-        <h3 className="mb-1 text-lg font-bold text-gray-900">{displayTitle}</h3>
-        {displaySubtitle && (
-          <p className="text-sm text-gray-600">{displaySubtitle}</p>
+        {showFeaturedBadge && topic.is_featured && (
+          <span
+            className="absolute left-3 top-3 rounded-full px-2.5 py-1 text-[11px] font-bold"
+            style={{
+              background: "#e7f7f5",
+              color: "#0f766e",
+              border: "1px solid #99f6e4",
+            }}
+          >
+            {t("Trending")}
+          </span>
         )}
       </div>
 
-      {/* Tags */}
-      <div className="mb-4 flex flex-wrap gap-2">
-        <span className="rounded-full border border-gray-300 bg-gray-50 px-2.5 py-1 text-xs font-medium text-gray-700">
-          {t(topic.category)}
-        </span>
-        {topic.tags.slice(0, 2).map((tag) => (
+      <div className="flex flex-1 flex-col px-5 py-4">
+        <h3 className="line-clamp-2 text-base font-bold leading-snug text-[var(--lingo-navy)]">
+          {displayTitle}
+        </h3>
+        {displaySubtitle && (
+          <p className="mt-1 line-clamp-1 text-sm text-[var(--lingo-text-muted)]">
+            {displaySubtitle}
+          </p>
+        )}
+
+        <div className="mt-3 flex flex-wrap gap-1.5">
           <span
-            key={tag}
-            className="rounded-full border border-gray-300 bg-gray-50 px-2.5 py-1 text-xs font-medium text-gray-700"
+            className="rounded-full px-2.5 py-1 text-[11px] font-semibold text-[var(--lingo-navy)]"
+            style={{ background: "var(--lingo-sky-pale)" }}
           >
-            {tag}
+            {t(topic.category)}
           </span>
-        ))}
-      </div>
-
-      {/* Starter Prompts */}
-      <div className="mb-4 flex-1">
-        <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">
-          {t("Conversation starters:")}
-        </p>
-        <ul className="space-y-1.5">
-          {topic.starter_prompts.map((prompt, idx) => (
-            <li key={idx} className="text-sm text-gray-700">
-              • {prompt}
-            </li>
+          <span
+            className="rounded-full px-2.5 py-1 text-[11px] font-semibold text-[var(--lingo-navy)]"
+            style={{ background: "var(--lingo-sky-pale)" }}
+          >
+            {hskLabelForCefr(topic.level)}
+          </span>
+          {topic.tags.slice(0, 2).map((tag) => (
+            <span
+              key={tag}
+              className="rounded-full border px-2.5 py-1 text-[11px] font-semibold text-[var(--lingo-text-muted)]"
+              style={{ borderColor: "var(--lingo-border)" }}
+            >
+              {tag}
+            </span>
           ))}
-        </ul>
-      </div>
+        </div>
 
-      {/* Buttons */}
-      <div className="flex gap-2">
-        <button
-          onClick={() => onSelect(topic)}
-          className="flex-1 rounded-lg border-2 border-gray-900 bg-gray-900 px-4 py-2.5 text-sm font-bold text-white transition-colors hover:bg-gray-800"
-        >
-          {t("Start learning")}
-        </button>
-        <button
-          onClick={() => onPreview(topic)}
-          className="rounded-lg border-2 border-gray-300 bg-white px-4 py-2.5 text-sm font-bold text-gray-700 transition-colors hover:bg-gray-50"
-        >
-          {t("Preview")}
-        </button>
+        {topic.starter_prompts.length > 0 && (
+          <ul className="mt-4 space-y-1.5">
+            {topic.starter_prompts.slice(0, 3).map((prompt, idx) => (
+              <li
+                key={idx}
+                className="line-clamp-2 text-sm leading-relaxed text-[var(--lingo-text)]"
+              >
+                {prompt}
+              </li>
+            ))}
+          </ul>
+        )}
+
+        <div className="mt-5 flex gap-2">
+          <button
+            type="button"
+            onClick={() => onSelect(topic)}
+            className="flex-1 rounded-2xl bg-[var(--lingo-navy)] px-4 py-2.5 text-sm font-bold text-white transition-colors hover:bg-[var(--lingo-navy-soft)]"
+          >
+            {t("Start learning")}
+          </button>
+          <button
+            type="button"
+            onClick={() => onPreview(topic)}
+            className="rounded-2xl border bg-white px-4 py-2.5 text-sm font-bold text-[var(--lingo-navy)] transition-colors hover:bg-[var(--lingo-sky-pale)]"
+            style={{ borderColor: "var(--lingo-border)" }}
+          >
+            {t("Preview")}
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -445,57 +455,67 @@ function PreviewModal({
       onClick={onClose}
     >
       <div
-        className="w-full max-w-lg rounded-xl border border-gray-200 bg-white p-6 shadow-lg"
+        className="w-full max-w-lg rounded-[24px] border bg-white p-6"
+        style={{
+          borderColor: "var(--lingo-border)",
+          boxShadow: "var(--lingo-shadow-card)",
+        }}
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Header */}
         <div className="mb-4">
-          <h2 className="mb-2 text-2xl font-bold text-gray-900">{displayTitle}</h2>
+          <h2 className="lingo-display text-2xl font-bold text-[var(--lingo-navy)]">
+            {displayTitle}
+          </h2>
           {displaySubtitle && (
-            <p className="text-base text-gray-600">{displaySubtitle}</p>
+            <p className="mt-1 text-sm text-[var(--lingo-text-muted)]">{displaySubtitle}</p>
           )}
         </div>
 
-        {/* Tags */}
         <div className="mb-4 flex flex-wrap gap-2">
-          <span className="rounded-full border border-gray-300 bg-gray-50 px-3 py-1.5 text-sm font-medium text-gray-700">
+          <span
+            className="rounded-full px-3 py-1.5 text-sm font-semibold text-[var(--lingo-navy)]"
+            style={{ background: "var(--lingo-sky-pale)" }}
+          >
             {t(topic.category)}
           </span>
           {topic.tags.map((tag) => (
             <span
               key={tag}
-              className="rounded-full border border-gray-300 bg-gray-50 px-3 py-1.5 text-sm font-medium text-gray-700"
+              className="rounded-full border px-3 py-1.5 text-sm font-semibold text-[var(--lingo-text-muted)]"
+              style={{ borderColor: "var(--lingo-border)" }}
             >
               {tag}
             </span>
           ))}
         </div>
 
-        {/* Starter Prompts */}
         <div className="mb-6">
-          <p className="mb-3 text-sm font-semibold uppercase tracking-wide text-gray-500">
-            {t("Conversation starters:")}
-          </p>
           <ul className="space-y-2">
             {topic.starter_prompts.map((prompt, idx) => (
-              <li key={idx} className="rounded-lg border border-gray-200 bg-gray-50 p-3 text-sm text-gray-700">
+              <li
+                key={idx}
+                className="rounded-xl border bg-[var(--lingo-sky-pale)] p-3 text-sm text-[var(--lingo-text)]"
+                style={{ borderColor: "var(--lingo-border)" }}
+              >
                 {prompt}
               </li>
             ))}
           </ul>
         </div>
 
-        {/* Actions */}
         <div className="flex gap-3">
           <button
+            type="button"
             onClick={onClose}
-            className="flex-1 rounded-lg border-2 border-gray-300 bg-white px-4 py-2.5 text-base font-bold text-gray-700 transition-colors hover:bg-gray-50"
+            className="flex-1 rounded-2xl border bg-white px-4 py-2.5 text-sm font-bold text-[var(--lingo-navy)] hover:bg-[var(--lingo-sky-pale)]"
+            style={{ borderColor: "var(--lingo-border)" }}
           >
             {t("Close")}
           </button>
           <button
+            type="button"
             onClick={() => onSelect(topic)}
-            className="flex-1 rounded-lg border-2 border-gray-900 bg-gray-900 px-4 py-2.5 text-base font-bold text-white transition-colors hover:bg-gray-800"
+            className="flex-1 rounded-2xl bg-[var(--lingo-navy)] px-4 py-2.5 text-sm font-bold text-white hover:bg-[var(--lingo-navy-soft)]"
           >
             {t("Start learning")}
           </button>
@@ -528,15 +548,21 @@ function PathChoiceModal({
       onClick={onClose}
     >
       <div
-        className="w-full max-w-lg rounded-xl border border-gray-200 bg-white p-6 shadow-lg"
+        className="w-full max-w-lg rounded-[24px] border bg-white p-6"
+        style={{
+          borderColor: "var(--lingo-border)",
+          boxShadow: "var(--lingo-shadow-card)",
+        }}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-6">
-          <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-gray-500">
+          <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-[var(--lingo-blue)]">
             {t("How do you want to learn?")}
           </p>
-          <h2 className="text-2xl font-bold text-gray-900">{displayTitle}</h2>
-          <p className="mt-2 text-sm text-gray-600">
+          <h2 className="lingo-display mt-1 text-2xl font-bold text-[var(--lingo-navy)]">
+            {displayTitle}
+          </h2>
+          <p className="mt-2 text-sm text-[var(--lingo-text-muted)]">
             {t("Choose a single focused lesson, or a multi-island learning path.")}
           </p>
         </div>
@@ -545,14 +571,18 @@ function PathChoiceModal({
           <button
             type="button"
             onClick={() => onCreateIsland(topic)}
-            className="flex items-start gap-4 rounded-xl border-2 border-gray-200 bg-white p-4 text-left transition-all hover:border-gray-900 hover:shadow-sm"
+            className="flex items-start gap-4 rounded-2xl border bg-white p-4 text-left transition-colors hover:bg-[var(--lingo-sky-pale)]"
+            style={{ borderColor: "var(--lingo-border)" }}
           >
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-700">
+            <div
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl"
+              style={{ background: "var(--lingo-sky-pale)", color: "var(--lingo-navy)" }}
+            >
               <Layers className="h-5 w-5" aria-hidden />
             </div>
             <div>
-              <p className="text-base font-bold text-gray-900">{t("Singular Island")}</p>
-              <p className="mt-0.5 text-sm text-gray-600">
+              <p className="text-base font-bold text-[var(--lingo-navy)]">{t("Singular Island")}</p>
+              <p className="mt-0.5 text-sm text-[var(--lingo-text-muted)]">
                 {t("One topic lesson with vocab + examples. Quick and focused.")}
               </p>
             </div>
@@ -561,14 +591,18 @@ function PathChoiceModal({
           <button
             type="button"
             onClick={() => onCreateJourney(topic)}
-            className="flex items-start gap-4 rounded-xl border-2 border-gray-200 bg-white p-4 text-left transition-all hover:border-gray-900 hover:shadow-sm"
+            className="flex items-start gap-4 rounded-2xl border bg-white p-4 text-left transition-colors hover:bg-[var(--lingo-sky-pale)]"
+            style={{ borderColor: "var(--lingo-border)" }}
           >
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-700">
+            <div
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl"
+              style={{ background: "var(--lingo-sky-pale)", color: "var(--lingo-navy)" }}
+            >
               <Map className="h-5 w-5" aria-hidden />
             </div>
             <div>
-              <p className="text-base font-bold text-gray-900">{t("Complete Journey")}</p>
-              <p className="mt-0.5 text-sm text-gray-600">
+              <p className="text-base font-bold text-[var(--lingo-navy)]">{t("Complete Journey")}</p>
+              <p className="mt-0.5 text-sm text-[var(--lingo-text-muted)]">
                 {t("A full path of islands and story checkpoints around this topic.")}
               </p>
             </div>
@@ -578,7 +612,8 @@ function PathChoiceModal({
         <button
           type="button"
           onClick={onClose}
-          className="mt-5 w-full rounded-lg border-2 border-gray-300 bg-white px-4 py-2.5 text-sm font-bold text-gray-700 transition-colors hover:bg-gray-50"
+          className="mt-5 w-full rounded-2xl border bg-white px-4 py-2.5 text-sm font-bold text-[var(--lingo-navy)] hover:bg-[var(--lingo-sky-pale)]"
+          style={{ borderColor: "var(--lingo-border)" }}
         >
           {t("Close")}
         </button>

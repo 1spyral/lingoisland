@@ -4,9 +4,11 @@ import { useEffect, useState, useRef } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { pinyin as pinyinPro } from "pinyin-pro";
 import { useCharacterSet } from "@/contexts/CharacterSetContext";
+import { useLanguage } from "@/contexts/LanguageContext";
 import { useOnboarding } from "@/contexts/OnboardingContext";
 import { useProgressIslandUpgrade, checkAndShowUpgrade } from "@/contexts/ProgressIslandUpgradeContext";
 import SpeakerButton from "@/components/app/SpeakerButton";
+import AppPageLoading from "@/components/app/AppPageLoading";
 
 interface Card {
   id: string;
@@ -24,6 +26,7 @@ export default function QuizSessionPage() {
   const quizIslandId = params.id as string;
   const sessionCardLimit = 10; // Quiz in groups of 10 cards at a time when there are enough cards
   const { convertText } = useCharacterSet();
+  const { t } = useLanguage();
   const { completeNudge } = useOnboarding();
   const progressUpgrade = useProgressIslandUpgrade();
 
@@ -142,40 +145,14 @@ export default function QuizSessionPage() {
       }
     } catch (error) {
       console.error("Error grading:", error);
-      alert("Failed to grade card. Please try again.");
+      alert(convertText(t("Failed to grade card. Please try again.")));
     } finally {
       setGrading(false);
     }
   };
 
   if (loading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-gray-50">
-        <div className="flex items-center gap-3 text-gray-600">
-          <svg
-            className="h-5 w-5 animate-spin text-gray-400"
-            xmlns="http://www.w3.org/2000/svg"
-            fill="none"
-            viewBox="0 0 24 24"
-          >
-            <circle
-              className="opacity-25"
-              cx="12"
-              cy="12"
-              r="10"
-              stroke="currentColor"
-              strokeWidth="4"
-            />
-            <path
-              className="opacity-75"
-              fill="currentColor"
-              d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
-            />
-          </svg>
-          <span>Loading quiz...</span>
-        </div>
-      </div>
-    );
+    return <AppPageLoading label={convertText(t("Loading quiz..."))} />;
   }
 
   if (cards.length === 0) {
@@ -183,13 +160,13 @@ export default function QuizSessionPage() {
       <div className="flex min-h-screen items-center justify-center bg-gray-50">
         <div className="rounded-xl border border-gray-200 bg-white p-12 text-center shadow-sm">
           <p className="mb-6 text-gray-600">
-            No cards to review right now!
+            {convertText(t("No cards to review right now!"))}
           </p>
           <button
             onClick={() => router.push(`/app/quiz/${quizIslandId}`)}
             className="inline-block rounded-lg border border-gray-900 bg-gray-900 px-6 py-3 text-base font-medium text-white transition-colors hover:bg-gray-800"
           >
-            Back to Quiz Island
+            {convertText(t("Back to Quiz Island"))}
           </button>
         </div>
       </div>
@@ -207,17 +184,17 @@ export default function QuizSessionPage() {
             onClick={() => router.push(`/app/quiz/${quizIslandId}`)}
             className="text-sm font-medium text-gray-600 transition-colors hover:text-gray-900"
           >
-            ← Exit Quiz
+            {convertText(t("← Exit Quiz"))}
           </button>
           <div className="flex items-center gap-3">
             <button
               onClick={() => setShowPinyin((prev) => !prev)}
               className="rounded-full border border-gray-200 bg-white px-3 py-1 text-xs font-medium text-gray-700 transition-colors hover:bg-gray-50"
             >
-              {showPinyin ? "Hide Pinyin" : "Show Pinyin"}
+              {convertText(t(showPinyin ? "Hide Pinyin" : "Show Pinyin"))}
             </button>
             <div className="text-sm text-gray-600">
-              Card {currentIndex + 1} of {cards.length}
+              {convertText(t("Card"))} {currentIndex + 1} {convertText(t("of"))} {cards.length}
             </div>
           </div>
         </div>
@@ -252,7 +229,7 @@ export default function QuizSessionPage() {
                 onClick={() => setShowAnswer(true)}
                 className="rounded-lg border border-gray-900 bg-gray-900 px-8 py-3 text-base font-medium text-white transition-colors hover:bg-gray-800"
               >
-                Show Answer
+                {convertText(t("Show Answer"))}
               </button>
             </div>
           ) : (
@@ -285,28 +262,28 @@ export default function QuizSessionPage() {
                   disabled={grading}
                   className="rounded-lg bg-red-600 px-6 py-3 text-sm font-medium text-white transition-colors hover:bg-red-700 disabled:opacity-50"
                 >
-                  Forgot
+                  {convertText(t("Forgot"))}
                 </button>
                 <button
                   onClick={() => handleGrade("hard")}
                   disabled={grading}
                   className="rounded-lg bg-orange-600 px-6 py-3 text-sm font-medium text-white transition-colors hover:bg-orange-700 disabled:opacity-50"
                 >
-                  Hard
+                  {convertText(t("Hard"))}
                 </button>
                 <button
                   onClick={() => handleGrade("good")}
                   disabled={grading}
                   className="rounded-lg bg-blue-600 px-6 py-3 text-sm font-medium text-white transition-colors hover:bg-blue-700 disabled:opacity-50"
                 >
-                  Good
+                  {convertText(t("Good"))}
                 </button>
                 <button
                   onClick={() => handleGrade("easy")}
                   disabled={grading}
                   className="rounded-lg bg-green-600 px-6 py-3 text-sm font-medium text-white transition-colors hover:bg-green-700 disabled:opacity-50"
                 >
-                  Easy
+                  {convertText(t("Easy"))}
                 </button>
               </div>
 

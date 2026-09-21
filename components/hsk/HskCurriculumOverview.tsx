@@ -10,6 +10,7 @@ import {
   HSK_BTN_SHADOW,
 } from "@/lib/glossy-theme";
 import { formatHskLevel } from "@/lib/utils/hsk";
+import AppPageLoading from "@/components/app/AppPageLoading";
 
 type Unit = {
   id: string;
@@ -88,11 +89,7 @@ export default function HskCurriculumOverview({
   const doneCount = units.filter((u) => u.status === "completed").length;
 
   if (loading) {
-    return (
-      <div className="flex min-h-[40vh] items-center justify-center text-sm text-[var(--lingo-text-muted)]">
-        Loading your path…
-      </div>
-    );
+    return <AppPageLoading label="Loading your path…" />;
   }
 
   if (error || !data?.curriculum) {

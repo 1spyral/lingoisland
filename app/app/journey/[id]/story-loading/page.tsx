@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 const STORY_CACHE_KEY = "journey_story_checkpoint_cache_v1";
 
@@ -9,6 +10,7 @@ export default function StoryLoadingPage() {
   const router = useRouter();
   const params = useParams<{ id: string }>();
   const searchParams = useSearchParams();
+  const { t } = useLanguage();
   const [error, setError] = useState<string | null>(null);
   const [retryNonce, setRetryNonce] = useState(0);
   const journeyId = params?.id;
@@ -19,7 +21,7 @@ export default function StoryLoadingPage() {
 
   useEffect(() => {
     if (!journeyId || !journeyNodeId) {
-      setError("Missing story checkpoint details.");
+      setError(t("Missing story checkpoint details."));
       return;
     }
 
@@ -58,7 +60,7 @@ export default function StoryLoadingPage() {
       setError(
         typeof data?.error === "string"
           ? data.error
-          : "We couldn't open that story checkpoint.",
+          : t("We couldn't open that story checkpoint."),
       );
     };
 
@@ -73,13 +75,13 @@ export default function StoryLoadingPage() {
     <div className="flex min-h-screen items-center justify-center bg-white px-6">
       <div className="w-full max-w-sm rounded-2xl border border-amber-200 bg-amber-50 p-6 text-center shadow-sm">
         <p className="text-[10px] font-black uppercase tracking-[0.16em] text-amber-600">
-          Story Checkpoint
+          {t("Story Checkpoint")}
         </p>
         <h1 className="mt-2 text-lg font-black text-amber-950">
-          Opening your story...
+          {t("Opening your story...")}
         </h1>
         <p className="mt-2 text-sm text-amber-800">
-          Hang tight while we prepare it.
+          {t("Hang tight while we prepare it.")}
         </p>
         {error && (
           <>
@@ -89,14 +91,14 @@ export default function StoryLoadingPage() {
               onClick={() => setRetryNonce((value) => value + 1)}
               className="mt-3 rounded-lg bg-amber-500 px-4 py-2 text-xs font-black text-white"
             >
-              Try again
+              {t("Try again")}
             </button>
             <button
               type="button"
               onClick={() => router.push("/app/journey")}
               className="ml-2 mt-3 rounded-lg border border-amber-300 bg-white px-4 py-2 text-xs font-black text-amber-700"
             >
-              Back
+              {t("Back")}
             </button>
           </>
         )}

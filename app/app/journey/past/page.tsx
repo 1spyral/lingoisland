@@ -24,6 +24,9 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import type { CompletedJourney } from "@/types/journey";
+import AppPageLoading from "@/components/app/AppPageLoading";
+import { useLanguage } from "@/contexts/LanguageContext";
+import { useCharacterSet } from "@/contexts/CharacterSetContext";
 
 const ACCENT_COLORS = [
   "#14b8a6",
@@ -50,8 +53,8 @@ function iconFor(topic: string): LucideIcon {
   return BookMarked;
 }
 
-function fmtDate(d: string) {
-  return new Date(d).toLocaleDateString("en-US", {
+function fmtDate(d: string, isChineseMode = false) {
+  return new Date(d).toLocaleDateString(isChineseMode ? "zh-CN" : "en-US", {
     month: "short",
     day: "numeric",
     year: "numeric",
@@ -60,6 +63,8 @@ function fmtDate(d: string) {
 
 function JourneyTicket({ journey }: { journey: CompletedJourney }) {
   const router = useRouter();
+  const { t, isChineseMode } = useLanguage();
+  const { convertText } = useCharacterSet();
   const accent = accentFor(journey.topic);
   const TopicIcon = iconFor(journey.topic);
   const isCompleted = !!journey.completed_at;
@@ -77,21 +82,23 @@ function JourneyTicket({ journey }: { journey: CompletedJourney }) {
   );
 
   const badge = isCompleted
-    ? `All ${islands.length} islands`
-    : `Island ${doneIslands.length} of ${islands.length}`;
+    ? t("All {n} islands").replace("{n}", String(islands.length))
+    : t("Island {a} of {b}")
+        .replace("{a}", String(doneIslands.length))
+        .replace("{b}", String(islands.length));
 
   const dateLabel = isCompleted
-    ? `Completed ${fmtDate(journey.completed_at!)}`
-    : `Started ${fmtDate(journey.created_at)}`;
+    ? t("Completed {date}").replace("{date}", fmtDate(journey.completed_at!, isChineseMode))
+    : t("Started {date}").replace("{date}", fmtDate(journey.created_at, isChineseMode));
 
   const meta = [
-    { Icon: Layers, label: `${islands.length} islands` },
-    { Icon: Type, label: `${totalWords} words` },
+    { Icon: Layers, label: `${islands.length} ${t("islands")}` },
+    { Icon: Type, label: `${totalWords} ${t("words")}` },
     ...(stories.length > 0
       ? [
           {
             Icon: BookOpen,
-            label: `${stories.length} ${stories.length === 1 ? "story" : "stories"}`,
+            label: `${stories.length} ${stories.length === 1 ? t("Story") : t("stories")}`,
           },
         ]
       : []),
@@ -125,7 +132,7 @@ function JourneyTicket({ journey }: { journey: CompletedJourney }) {
         </div>
 
         <p className="m-0 line-clamp-2 text-[15.5px] font-black leading-tight tracking-tight text-gray-900">
-          {journey.topic}
+          {convertText(journey.topic)}
         </p>
 
         <div className="flex flex-wrap items-center gap-2.5">
@@ -159,7 +166,7 @@ function JourneyTicket({ journey }: { journey: CompletedJourney }) {
             {isCompleted ? totalWords : wordsLearned}
           </p>
           <p className="mt-0.5 text-[10px] text-gray-400">
-            {isCompleted ? "words learned" : "words done"}
+            {isCompleted ? t("words learned") : t("words done")}
           </p>
         </div>
 
@@ -171,7 +178,7 @@ function JourneyTicket({ journey }: { journey: CompletedJourney }) {
           }`}
         >
           {isCompleted ? <Check size={10} /> : <Clock size={10} />}
-          {isCompleted ? "Completed" : "In Progress"}
+          {isCompleted ? t("Completed") : t("In Progress")}
         </div>
       </div>
     </div>
@@ -228,6 +235,7 @@ function Chip({
 
 export default function MyJourneysPage() {
   const router = useRouter();
+  const { t } = useLanguage();
   const [journeys, setJourneys] = useState<CompletedJourney[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<Filter>("all");
@@ -260,11 +268,7 @@ export default function MyJourneysPage() {
   const completed = filtered.filter((j) => !!j.completed_at);
 
   if (loading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center text-gray-400">
-        Loading…
-      </div>
-    );
+    return <AppPageLoading />;
   }
 
   return (
@@ -273,13 +277,13 @@ export default function MyJourneysPage() {
         <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <p className="text-[10px] font-black uppercase tracking-[0.18em] text-gray-400">
-              Learning Path
+              {t("Learning Path")}
             </p>
             <h1 className="mt-1 text-3xl font-black tracking-tight text-gray-900">
-              My Journeys
+              {t("My Journeys")}
             </h1>
             <p className="mt-1 text-sm text-gray-500">
-              All your journeys — active, in progress, and completed.
+              {t("All your journeys — active, in progress, and completed.")}
             </p>
           </div>
           <div className="flex shrink-0 items-center gap-2">
@@ -289,7 +293,7 @@ export default function MyJourneysPage() {
               className="flex items-center justify-center gap-1.5 rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm font-semibold text-gray-600 shadow-sm transition-colors hover:bg-gray-50"
             >
               <ArrowLeft className="h-3.5 w-3.5" />
-              Back to Journey
+              {t("Back to Journey")}
             </button>
             <button
               type="button"
@@ -297,7 +301,7 @@ export default function MyJourneysPage() {
               className="flex items-center justify-center gap-1.5 rounded-xl bg-[#1a2332] px-5 py-3 text-sm font-bold text-white shadow-sm transition-colors hover:bg-[#2d3a4d]"
             >
               <Plus className="h-3.5 w-3.5" />
-              New Journey
+              {t("New Journey")}
             </button>
           </div>
         </div>
@@ -310,7 +314,7 @@ export default function MyJourneysPage() {
             />
             <input
               type="text"
-              placeholder="Search journeys…"
+              placeholder={t("Search journeys…")}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="w-60 rounded-xl border border-gray-300 bg-white py-2 pl-9 pr-3 text-sm text-gray-900 placeholder:text-gray-400 focus:border-teal-400 focus:outline-none"
@@ -319,24 +323,24 @@ export default function MyJourneysPage() {
 
           <div className="flex gap-1.5">
             <Chip
-              label="All"
+              label={t("All")}
               active={filter === "all"}
               onClick={() => setFilter("all")}
             />
             <Chip
-              label="In Progress"
+              label={t("In Progress")}
               active={filter === "in-progress"}
               onClick={() => setFilter("in-progress")}
             />
             <Chip
-              label="Completed"
+              label={t("Completed")}
               active={filter === "completed"}
               onClick={() => setFilter("completed")}
             />
           </div>
 
           <span className="ml-auto text-sm text-gray-500">
-            {filtered.length} journey{filtered.length !== 1 ? "s" : ""}
+            {filtered.length} {filtered.length !== 1 ? t("journeys") : t("journey")}
           </span>
         </div>
 
@@ -344,26 +348,26 @@ export default function MyJourneysPage() {
           <div className="flex flex-col items-center gap-3.5 pt-20">
             <Map size={40} className="text-gray-300" />
             <p className="m-0 text-lg font-black text-gray-900">
-              No journeys yet
+              {t("No journeys yet")}
             </p>
             <p className="m-0 max-w-[280px] text-center text-sm leading-relaxed text-gray-500">
-              Your completed and in-progress journeys will appear here.
+              {t("Your completed and in-progress journeys will appear here.")}
             </p>
             <button
               type="button"
               onClick={() => router.push("/app/journey/create")}
               className="mt-1.5 rounded-xl bg-[#1a2332] px-5 py-2.5 text-sm font-bold text-white transition-colors hover:bg-[#2d3a4d]"
             >
-              Start your first journey →
+              {t("Start your first journey →")}
             </button>
           </div>
         )}
 
         {(filter === "all" || filter === "in-progress") && (
-          <Section label="In Progress" journeys={inProgress} />
+          <Section label={t("In Progress")} journeys={inProgress} />
         )}
         {(filter === "all" || filter === "completed") && (
-          <Section label="Completed" journeys={completed} />
+          <Section label={t("Completed")} journeys={completed} />
         )}
       </div>
     </div>

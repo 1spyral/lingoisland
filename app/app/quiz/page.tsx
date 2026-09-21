@@ -3,9 +3,22 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import {
+  BookOpen,
+  Briefcase,
+  Car,
+  ChevronRight,
+  HeartPulse,
+  Layers,
+  Plane,
+  Plus,
+  Utensils,
+  type LucideIcon,
+} from "lucide-react";
 import { useCharacterSet } from "@/contexts/CharacterSetContext";
-import { OceanBackground } from "@/components/OceanBackground";
+import { useLanguage } from "@/contexts/LanguageContext";
 import { useSubscription } from "@/hooks/useSubscription";
+import AppPageLoading from "@/components/app/AppPageLoading";
 
 interface QuizIsland {
   id: string;
@@ -14,9 +27,21 @@ interface QuizIsland {
   card_count: number;
 }
 
+function deckIcon(name: string): LucideIcon {
+  const n = name.toLowerCase();
+  if (/\bhsk\b|flashcard|vocab/.test(n)) return BookOpen;
+  if (/hospital|health|clinic|doctor/.test(n)) return HeartPulse;
+  if (/driv|car|traffic/.test(n)) return Car;
+  if (/food|restaurant|cook|eat/.test(n)) return Utensils;
+  if (/travel|airport|trip|hotel/.test(n)) return Plane;
+  if (/work|office|school|job/.test(n)) return Briefcase;
+  return Layers;
+}
+
 export default function QuizIslandsPage() {
   const router = useRouter();
   const { convertText } = useCharacterSet();
+  const { t } = useLanguage();
   const { isPro, isLoading: subscriptionLoading } = useSubscription();
   const [quizIslands, setQuizIslands] = useState<QuizIsland[]>([]);
   const [loading, setLoading] = useState(true);
@@ -74,12 +99,11 @@ export default function QuizIslandsPage() {
       const data = await response.json();
       setShowCreateModal(false);
       setNewIslandName("");
-      // Navigate to the new quiz island
       router.push(`/app/quiz/${data.quizIsland.id}`);
     } catch (error) {
       console.error("Error creating quiz island:", error);
       alert(
-        error instanceof Error ? error.message : "Failed to create quiz island"
+        error instanceof Error ? error.message : "Failed to create quiz island",
       );
     } finally {
       setCreating(false);
@@ -89,7 +113,11 @@ export default function QuizIslandsPage() {
   const handleDelete = async (islandId: string) => {
     if (
       !confirm(
-        "Are you sure you want to delete this quiz island? This will also delete all cards in it."
+        convertText(
+          t(
+            "Are you sure you want to delete this quiz island? This will also delete all cards in it.",
+          ),
+        ),
       )
     ) {
       return;
@@ -110,7 +138,7 @@ export default function QuizIslandsPage() {
     } catch (error) {
       console.error("Error deleting quiz island:", error);
       alert(
-        error instanceof Error ? error.message : "Failed to delete quiz island"
+        error instanceof Error ? error.message : "Failed to delete quiz island",
       );
     } finally {
       setDeletingIslandId(null);
@@ -118,129 +146,176 @@ export default function QuizIslandsPage() {
   };
 
   if (loading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center">
-        <div className="text-gray-600">Loading...</div>
-      </div>
-    );
+    return <AppPageLoading />;
   }
 
   return (
-    <div className="relative min-h-screen p-4 md:p-8">
-      <OceanBackground />
-      <div className="relative z-10 mx-auto max-w-6xl">
-        {/* Header */}
-        <div className="mb-6 md:mb-8 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <h1 className="text-2xl md:text-3xl font-bold text-gray-900">
-            Quiz
+    <div className="mx-auto max-w-[1120px] px-4 py-8 md:px-6">
+      <div className="mb-7 flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-[var(--lingo-blue)]">
+            {convertText(t("Quiz"))}
+          </p>
+          <h1 className="lingo-display mt-1 max-w-xl text-3xl font-bold text-[var(--lingo-navy)] sm:text-4xl">
+            {convertText(t("Small quizzes."))}
+            <br />
+            {convertText(t("Big progress."))}
           </h1>
+          <p className="mt-2 max-w-lg text-sm leading-relaxed text-[var(--lingo-text-muted)]">
+            {convertText(t("Practice vocabulary from your islands and saved words."))}
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={() => setShowCreateModal(true)}
+          className="inline-flex items-center justify-center gap-1.5 rounded-2xl bg-[var(--lingo-navy)] px-5 py-3 text-sm font-bold text-white shadow-sm transition-colors hover:bg-[var(--lingo-navy-soft)]"
+        >
+          <Plus size={16} aria-hidden />
+          {convertText(t("Create Quiz Island"))}
+        </button>
+      </div>
+
+      {quizIslands.length === 0 ? (
+        <div
+          className="mx-auto flex max-w-lg flex-col items-center rounded-[28px] border bg-white px-6 py-12 text-center"
+          style={{
+            borderColor: "var(--lingo-border)",
+            boxShadow: "var(--lingo-shadow-card)",
+          }}
+        >
+          <h2 className="lingo-display text-xl font-bold text-[var(--lingo-navy)]">
+            {convertText(t("Create your first quiz"))}
+          </h2>
+          <p className="mt-2 max-w-sm text-sm text-[var(--lingo-text-muted)]">
+            {convertText(t("Create your first quiz island to start practicing."))}
+          </p>
           <button
+            type="button"
             onClick={() => setShowCreateModal(true)}
-            className="rounded-lg border-2 border-gray-900 bg-white px-5 md:px-6 py-2.5 md:py-3 text-sm md:text-base font-bold uppercase tracking-wide text-gray-900 transition-colors hover:bg-gray-50 shadow-[0_0_14px_3px_rgba(147,197,253,0.6)]"
+            className="mt-6 inline-flex items-center justify-center gap-1.5 rounded-2xl bg-[var(--lingo-navy)] px-5 py-3 text-sm font-bold text-white shadow-sm transition-colors hover:bg-[var(--lingo-navy-soft)]"
           >
-            Create Quiz Island
+            <Plus size={16} aria-hidden />
+            {convertText(t("Create Quiz Island"))}
           </button>
         </div>
-
-        {/* Empty State */}
-        {quizIslands.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-20">
-            <p className="mb-8 text-lg text-gray-600">
-              Create your first quiz island to start practicing
-            </p>
-            <button
-              onClick={() => setShowCreateModal(true)}
-              className="rounded-lg border-2 border-gray-900 bg-white px-8 py-4 text-base font-bold uppercase tracking-wide text-gray-900 transition-colors hover:bg-gray-50 shadow-[0_0_14px_3px_rgba(147,197,253,0.6)]"
-            >
-              Create Quiz Island
-            </button>
-          </div>
-        ) : (
-          /* Islands List */
+      ) : (
+        <section>
+          <h2 className="lingo-display mb-4 text-xl font-bold text-[var(--lingo-navy)]">
+            {convertText(t("Your quiz decks"))}
+          </h2>
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {quizIslands.map((island) => (
-              <div
-                key={island.id}
-                className="group relative rounded-xl border border-gray-300 bg-white p-6 shadow-sm transition-all hover:border-gray-900 hover:bg-gray-50 hover:shadow-md"
-              >
-                <Link href={`/app/quiz/${island.id}`} className="block">
-                  <h3 className="mb-2 text-xl font-bold text-gray-900">
-                    {convertText(island.name)}
-                  </h3>
-                  <div className="space-y-1 text-sm text-gray-600">
-                    <p>
-                      Chinese • {island.card_count} card
-                      {island.card_count !== 1 ? "s" : ""}
-                    </p>
-                  </div>
-                </Link>
-                <button
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    handleDelete(island.id);
+            {quizIslands.map((island) => {
+              const Icon = deckIcon(island.name);
+              return (
+                <div
+                  key={island.id}
+                  className="group relative overflow-hidden rounded-[28px] border bg-white transition-[transform,box-shadow] duration-200 hover:-translate-y-0.5 motion-reduce:transition-none motion-reduce:hover:translate-y-0"
+                  style={{
+                    borderColor: "var(--lingo-border)",
+                    boxShadow: "var(--lingo-shadow-card)",
                   }}
-                  disabled={deletingIslandId === island.id}
-                  className="absolute right-4 top-4 text-sm text-gray-400 opacity-0 transition-opacity hover:text-red-600 group-hover:opacity-100 disabled:opacity-50"
-                  title="Delete island"
                 >
-                  {deletingIslandId === island.id ? "Deleting..." : "×"}
-                </button>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {/* Create Modal */}
-        {showCreateModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
-            <div className="w-full max-w-md max-h-[90vh] overflow-y-auto rounded-xl border border-gray-200 bg-white p-5 md:p-8 shadow-xl">
-              <h2 className="mb-6 text-2xl font-bold text-gray-900">
-                Create Quiz Island
-              </h2>
-              <form onSubmit={handleCreate}>
-                <div className="mb-6">
-                  <label className="mb-2 block text-sm font-medium text-gray-900">
-                    Name
-                  </label>
-                  <input
-                    type="text"
-                    value={newIslandName}
-                    onChange={(e) => setNewIslandName(e.target.value)}
-                    placeholder="e.g., Basic Vocabulary"
-                    className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2 focus:border-gray-900 focus:outline-none"
-                    required
-                    autoFocus
-                  />
-                  <p className="mt-1 text-xs text-gray-600">
-                    Quiz islands are for Chinese practice only
-                  </p>
-                </div>
-                <div className="flex gap-4">
+                  <Link href={`/app/quiz/${island.id}`} className="flex items-start gap-4 px-5 py-5">
+                    <span
+                      className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl"
+                      style={{
+                        background: "var(--lingo-sky-pale)",
+                        color: "var(--lingo-navy)",
+                      }}
+                    >
+                      <Icon size={18} aria-hidden />
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <h3 className="line-clamp-2 pr-6 text-base font-bold leading-snug text-[var(--lingo-navy)]">
+                        {convertText(island.name)}
+                      </h3>
+                      <p className="mt-1 text-sm text-[var(--lingo-text-muted)]">
+                        {convertText(t("Chinese"))} · {island.card_count}{" "}
+                        {convertText(t(island.card_count !== 1 ? "cards" : "card"))}
+                      </p>
+                    </div>
+                    <ChevronRight
+                      size={18}
+                      className="mt-0.5 shrink-0 text-[var(--lingo-blue)] transition-transform duration-200 group-hover:translate-x-0.5 motion-reduce:transition-none"
+                      aria-hidden
+                    />
+                  </Link>
                   <button
                     type="button"
-                    onClick={() => {
-                      setShowCreateModal(false);
-                      setNewIslandName("");
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      handleDelete(island.id);
                     }}
-                    className="flex-1 rounded-lg border border-gray-300 bg-white px-4 py-2 text-base text-gray-700 transition-colors hover:bg-gray-50"
-                    disabled={creating}
+                    disabled={deletingIslandId === island.id}
+                    className="absolute right-3 top-3 rounded-full px-2 py-1 text-xs font-semibold text-[var(--lingo-text-muted)] opacity-0 transition-opacity hover:text-red-600 group-hover:opacity-100 disabled:opacity-50"
+                    title={convertText(t("Delete island"))}
                   >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={creating || !newIslandName.trim()}
-                    className="flex-1 rounded-lg border border-gray-900 bg-white px-4 py-2 text-base font-medium text-gray-900 transition-colors hover:bg-gray-50 disabled:opacity-50"
-                  >
-                    {creating ? "Creating..." : "Create"}
+                    {deletingIslandId === island.id ? convertText(t("Deleting...")) : "×"}
                   </button>
                 </div>
-              </form>
-            </div>
+              );
+            })}
           </div>
-        )}
-      </div>
+        </section>
+      )}
+
+      {showCreateModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
+          <div
+            className="w-full max-w-md max-h-[90vh] overflow-y-auto rounded-[24px] border bg-white p-5 md:p-8"
+            style={{
+              borderColor: "var(--lingo-border)",
+              boxShadow: "var(--lingo-shadow-card)",
+            }}
+          >
+            <h2 className="lingo-display mb-6 text-2xl font-bold text-[var(--lingo-navy)]">
+              {convertText(t("Create Quiz Island"))}
+            </h2>
+            <form onSubmit={handleCreate}>
+              <div className="mb-6">
+                <label className="mb-2 block text-sm font-medium text-[var(--lingo-navy)]">
+                  {convertText(t("Name"))}
+                </label>
+                <input
+                  type="text"
+                  value={newIslandName}
+                  onChange={(e) => setNewIslandName(e.target.value)}
+                  placeholder={convertText(t("e.g., Basic Vocabulary"))}
+                  className="w-full rounded-xl border bg-white px-4 py-2.5 text-[var(--lingo-text)] focus:border-[var(--lingo-blue)] focus:outline-none"
+                  style={{ borderColor: "var(--lingo-border)" }}
+                  required
+                  autoFocus
+                />
+                <p className="mt-1 text-xs text-[var(--lingo-text-muted)]">
+                  {convertText(t("Quiz islands are for Chinese practice only"))}
+                </p>
+              </div>
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowCreateModal(false);
+                    setNewIslandName("");
+                  }}
+                  className="flex-1 rounded-2xl border bg-white px-4 py-2.5 text-sm font-semibold text-[var(--lingo-navy)] transition-colors hover:bg-[var(--lingo-sky-pale)]"
+                  style={{ borderColor: "var(--lingo-border)" }}
+                  disabled={creating}
+                >
+                  {convertText(t("Cancel"))}
+                </button>
+                <button
+                  type="submit"
+                  disabled={creating || !newIslandName.trim()}
+                  className="flex-1 rounded-2xl bg-[var(--lingo-navy)] px-4 py-2.5 text-sm font-bold text-white transition-colors hover:bg-[var(--lingo-navy-soft)] disabled:opacity-50"
+                >
+                  {creating ? convertText(t("Creating...")) : convertText(t("Create"))}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

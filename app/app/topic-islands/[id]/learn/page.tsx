@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useParams, usePathname, useRouter, useSearchParams } from "next/navigation";
 import LearnSequence, { learnSequenceKey } from "@/components/app/LearnSequence";
 import type { LearnIsland, LearnWord } from "@/components/app/LearnSequence/types";
+import AppPageLoading from "@/components/app/AppPageLoading";
 
 type LessonResponse = {
   island?: LearnIsland;
@@ -44,7 +45,7 @@ export default function IslandLearnPage() {
   };
 
   if (!lesson?.island || !lesson.words) {
-    return <main className="min-h-screen bg-white" />;
+    return <AppPageLoading />;
   }
 
   return (

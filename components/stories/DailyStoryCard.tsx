@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useCharacterSet } from "@/contexts/CharacterSetContext";
 import {
@@ -8,6 +9,7 @@ import {
   cardBaseClass,
   cardHoverClass,
 } from "@/components/app/ui/styles";
+import { capybaraStorySrc } from "@/lib/capybaraStories";
 import { getLocalDateKey } from "@/lib/utils/date";
 import { hskLabelForCefr } from "@/lib/levelBands";
 
@@ -59,10 +61,75 @@ export default function DailyStoryCard({
 
   const dateLabel = formatDate(story?.date || story?.created_at || today);
   const timeLabel = getTimeLabel(story?.story_zh, convertText(t("min")));
-  const containerClass =
-    variant === "home"
-      ? `${cardBaseClass} ${cardHoverClass} h-full p-5 md:p-6 flex flex-col`
-      : "rounded-2xl border border-gray-200 bg-gray-50 p-5 md:p-6 flex flex-col";
+
+  if (variant === "stories") {
+    const href = story ? `/app/story/${story.id}` : previewHref;
+    return (
+      <div
+        className="relative overflow-hidden rounded-[28px]"
+        style={{
+          background:
+            "linear-gradient(95deg, #e8f6fb 0%, var(--lingo-sky-pale) 42%, #f7fcfe 68%)",
+          boxShadow: "var(--lingo-shadow-sm)",
+        }}
+      >
+        <div className="relative z-10 flex flex-col sm:min-h-[252px] sm:flex-row">
+          <div className="flex w-full flex-col justify-center px-6 py-8 sm:max-w-[54%] sm:px-10 sm:py-10">
+            <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-[var(--lingo-blue)]">
+              {convertText(t("Today's story"))}
+            </p>
+            {story ? (
+              <>
+                <h2 className="lingo-display mt-2 text-2xl font-bold text-[var(--lingo-navy)] md:text-[30px]">
+                  {convertText(story.title)}
+                </h2>
+                <p className="mt-2 line-clamp-2 max-w-md text-sm leading-relaxed text-[var(--lingo-text-muted)] md:text-base">
+                  {convertText(story.story_zh)}
+                </p>
+              </>
+            ) : (
+              <>
+                <h2 className="lingo-display mt-2 text-2xl font-bold text-[var(--lingo-navy)] md:text-[30px]">
+                  {loading
+                    ? convertText(t("Generating..."))
+                    : convertText(t("Today's story is on the way."))}
+                </h2>
+                <p className="mt-2 max-w-md text-sm leading-relaxed text-[var(--lingo-text-muted)] md:text-base">
+                  {convertText(t("Review words you've been learning in a short story built for today."))}
+                </p>
+              </>
+            )}
+            <Link
+              href={href}
+              onClick={onRead}
+              className="mt-6 inline-flex w-fit rounded-2xl bg-[var(--lingo-blue)] px-6 py-2.5 text-sm font-bold text-white shadow-sm transition-colors hover:bg-[var(--lingo-blue-bright)]"
+            >
+              {convertText(t("Read"))}
+            </Link>
+          </div>
+          <div className="relative h-44 w-full sm:absolute sm:inset-y-0 sm:right-0 sm:h-auto sm:w-[50%]">
+            <Image
+              src={capybaraStorySrc(story?.id ?? "daily")}
+              alt=""
+              fill
+              priority
+              sizes="(max-width: 640px) 100vw, 50vw"
+              className="object-cover object-[62%_42%]"
+            />
+            <div
+              className="pointer-events-none absolute inset-y-0 left-0 hidden w-24 sm:block"
+              style={{
+                background:
+                  "linear-gradient(90deg, #e8f6fb 0%, rgba(232,246,251,0.55) 46%, rgba(232,246,251,0) 100%)",
+              }}
+            />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const containerClass = `${cardBaseClass} ${cardHoverClass} h-full p-5 md:p-6 flex flex-col`;
 
   return (
     <div className={containerClass}>
@@ -73,11 +140,9 @@ export default function DailyStoryCard({
       </div>
       {story ? (
         <div className="flex flex-1 flex-col gap-2 md:gap-3">
-          {variant === "home" && (
-            <span className="text-xs md:text-sm text-gray-500">
-              {convertText(t("Review words you've recently learned in a short story."))}
-            </span>
-          )}
+          <span className="text-xs md:text-sm text-gray-500">
+            {convertText(t("Review words you've recently learned in a short story."))}
+          </span>
           <div className="flex flex-wrap items-center gap-2 text-sm text-gray-600">
             <span className="rounded-full border border-slate-200 bg-white px-2 md:px-2.5 py-0.5 md:py-1 text-[10px] md:text-xs font-semibold uppercase tracking-wide text-gray-700">
               {hskLabelForCefr(story.level)}
@@ -90,19 +155,17 @@ export default function DailyStoryCard({
             </span>
           </div>
           <h3 className="text-base md:text-lg font-semibold text-gray-900">{convertText(story.title)}</h3>
-          {variant === "home" && (
-            <p
-              className="text-sm text-gray-600"
-              style={{
-                display: "-webkit-box",
-                WebkitLineClamp: 2,
-                WebkitBoxOrient: "vertical",
-                overflow: "hidden",
-              }}
-            >
-              {convertText(story.story_zh)}
-            </p>
-          )}
+          <p
+            className="text-sm text-gray-600"
+            style={{
+              display: "-webkit-box",
+              WebkitLineClamp: 2,
+              WebkitBoxOrient: "vertical",
+              overflow: "hidden",
+            }}
+          >
+            {convertText(story.story_zh)}
+          </p>
           <Link
             href={`/app/story/${story.id}`}
             className={`${buttonPrimaryClass} mt-auto w-fit`}
@@ -113,9 +176,7 @@ export default function DailyStoryCard({
         </div>
       ) : (
         <div className="flex flex-1 flex-col items-start gap-3 text-sm text-gray-600">
-          {variant === "home" && (
-            <span>{convertText(t("Review your vocab in a short story."))}</span>
-          )}
+          <span>{convertText(t("Review your vocab in a short story."))}</span>
           <span>
             {loading ? convertText(t("Generating...")) : convertText(t("Today's story is on the way."))}
           </span>

@@ -17,6 +17,8 @@ import {
   useIsHskAppPreview,
 } from "@/components/hsk/hskFlashcardsPaths";
 import { HSK_APP_LABELS } from "@/lib/hsk-app-labels";
+import AppPageLoading from "@/components/app/AppPageLoading";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 interface Deck {
   id: string;
@@ -36,6 +38,7 @@ export default function HskFlashcardsDeckDetail({
   const root = hskFlashcardsRoot(basePath);
   const deckPath = hskFlashcardsDeck(basePath, deckId);
   const { convertText } = useCharacterSet();
+  const { t } = useLanguage();
 
   const [deck, setDeck] = useState<Deck | null>(null);
   const [loading, setLoading] = useState(true);
@@ -112,39 +115,13 @@ export default function HskFlashcardsDeckDetail({
   };
 
   if (loading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-gray-50">
-        <div className="flex items-center gap-3 text-gray-600">
-          <svg
-            className="h-5 w-5 animate-spin text-gray-400"
-            xmlns="http://www.w3.org/2000/svg"
-            fill="none"
-            viewBox="0 0 24 24"
-          >
-            <circle
-              className="opacity-25"
-              cx="12"
-              cy="12"
-              r="10"
-              stroke="currentColor"
-              strokeWidth="4"
-            />
-            <path
-              className="opacity-75"
-              fill="currentColor"
-              d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
-            />
-          </svg>
-          <span>Loading deck...</span>
-        </div>
-      </div>
-    );
+    return <AppPageLoading label={t("Loading deck...")} />;
   }
 
   if (!deck) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-gray-50">
-        <div className="text-gray-600">Deck not found</div>
+        <div className="text-gray-600">{t("Deck not found")}</div>
       </div>
     );
   }
@@ -159,7 +136,7 @@ export default function HskFlashcardsDeckDetail({
             onClick={() => router.push(root)}
             className="mb-4 text-sm font-medium text-gray-600 transition-colors hover:text-gray-900"
           >
-            ← Back to {isHskApp ? HSK_APP_LABELS.flashcards.nav : "Flashcards"}
+            ← {t("Back")} {t(isHskApp ? HSK_APP_LABELS.flashcards.nav : "Flashcards")}
           </button>
           {isEditingName ? (
             <div className="mb-2 flex items-center gap-2">
@@ -183,14 +160,14 @@ export default function HskFlashcardsDeckDetail({
                 disabled={savingName || !editedName.trim()}
                 className="rounded-lg border border-gray-900 bg-gray-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-gray-800 disabled:opacity-50"
               >
-                {savingName ? "Saving..." : "Save"}
+                {savingName ? t("Saving...") : t("Save")}
               </button>
               <button
                 onClick={handleCancelEditName}
                 disabled={savingName}
                 className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 disabled:opacity-50"
               >
-                Cancel
+                {t("Cancel")}
               </button>
             </div>
           ) : (
@@ -203,56 +180,55 @@ export default function HskFlashcardsDeckDetail({
                 className="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm font-medium text-gray-600 opacity-0 transition-all hover:border-gray-300 hover:text-gray-900 group-hover:opacity-100"
                 title="Edit name"
               >
-                Edit
+                {t("Edit")}
               </button>
             </div>
           )}
           <p className="text-sm text-gray-600">
-            Chinese • {deck.card_count} card
-            {deck.card_count !== 1 ? "s" : ""}
+            {t("Chinese")} • {deck.card_count}{" "}
+            {deck.card_count !== 1 ? t("cards") : t("card")}
           </p>
         </div>
 
         {!hasCards ? (
           <div className="rounded-xl border border-gray-200 bg-white p-12 text-center shadow-sm">
             <p className="mb-6 text-gray-600">
-              This deck is empty. Add cards to start practicing.
+              {t("This quiz island is empty. Add cards to start practicing.")}
             </p>
             <Link
               href={`${deckPath}/add`}
               className="inline-block rounded-lg border border-gray-900 bg-gray-900 px-6 py-3 text-base font-medium text-white transition-colors hover:bg-gray-800"
             >
-              Add Cards
+              {t("Add Cards")}
             </Link>
           </div>
         ) : (
           <div className="space-y-6">
             <div className="rounded-xl border border-gray-200 bg-white p-8 shadow-sm">
               <h2 className="mb-6 text-xl font-semibold text-gray-900">
-                Ready to practice?
+                {t("Ready to practice?")}
               </h2>
               <button
                 onClick={() => router.push(`${deckPath}/session`)}
                 className="mb-2 w-full rounded-lg border border-gray-900 bg-gray-900 px-6 py-4 text-center text-base font-medium text-white transition-colors hover:bg-gray-800"
               >
-                Start Flashcards
+                {t("Start Flashcards")}
               </button>
               <p className="mb-4 text-sm text-gray-500">
-                Reviews here count toward your Progress Island on Home — every
-                10 cards levels up the island.
+                {t("Reviews here count toward your Progress Island on Home — every 10 cards levels up the island.")}
               </p>
               <div className="mt-4 flex gap-3">
                 <Link
                   href={`${deckPath}/add`}
                   className="flex-1 rounded-lg border border-gray-200 bg-white px-4 py-2 text-center text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50"
                 >
-                  Add Cards
+                  {t("Add Cards")}
                 </Link>
                 <Link
                   href={`${deckPath}/manage`}
                   className="flex-1 rounded-lg border border-gray-200 bg-white px-4 py-2 text-center text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50"
                 >
-                  Manage
+                  {t("Manage")}
                 </Link>
               </div>
             </div>

@@ -4,6 +4,8 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
+import { useLanguage } from "@/contexts/LanguageContext";
+import { useCharacterSet } from "@/contexts/CharacterSetContext";
 
 /**
  * Lightweight first-run entry. Prefers the pronunciation check when no
@@ -11,6 +13,8 @@ import Link from "next/link";
  */
 export default function PronunciationSetupPage() {
   const router = useRouter();
+  const { t } = useLanguage();
+  const { convertText } = useCharacterSet();
   const [starting, setStarting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -40,10 +44,10 @@ export default function PronunciationSetupPage() {
           <Image src="/animation-photos/huahua-speaking.png" alt="" fill className="object-cover" />
         </div>
         <h1 className="lingo-display text-center text-xl font-bold text-[var(--lingo-navy)]">
-          Pronunciation practice
+          {convertText(t("Pronunciation practice"))}
         </h1>
         <p className="mt-2 text-center text-sm text-[var(--lingo-text-muted)]">
-          Start with a quick check so we know what to focus on — or jump straight into today&apos;s practice.
+          {convertText(t("Start with a quick check so we know what to focus on — or jump straight into today's practice."))}
         </p>
         {error && <p className="mt-4 text-sm text-red-600">{error}</p>}
         <Link
@@ -51,7 +55,7 @@ export default function PronunciationSetupPage() {
           className="mt-6 flex w-full items-center justify-center rounded-2xl px-4 py-3 text-sm font-bold text-white shadow-sm"
           style={{ background: "var(--lingo-accent-gradient)" }}
         >
-          Take the 2-minute check →
+          {convertText(t("Take the 2-minute check →"))}
         </Link>
         <button
           type="button"
@@ -59,7 +63,7 @@ export default function PronunciationSetupPage() {
           onClick={() => void startPractice()}
           className="mt-3 w-full rounded-2xl border border-[var(--lingo-accent-border)] bg-white px-4 py-3 text-sm font-bold text-[var(--lingo-navy)] disabled:opacity-60"
         >
-          {starting ? "Preparing your session…" : "Skip — start practicing"}
+          {convertText(t(starting ? "Preparing your session…" : "Skip — start practicing"))}
         </button>
       </div>
     </div>

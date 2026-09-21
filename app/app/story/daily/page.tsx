@@ -10,8 +10,13 @@ import StoryReader, {
   type StoryTargetWord,
 } from "@/components/stories/StoryReader";
 import { useOnboarding } from "@/contexts/OnboardingContext";
+import AppPageLoading from "@/components/app/AppPageLoading";
+import { useLanguage } from "@/contexts/LanguageContext";
+import { useCharacterSet } from "@/contexts/CharacterSetContext";
 
 export default function DailyStoryPreviewPage() {
+  const { t } = useLanguage();
+  const { convertText } = useCharacterSet();
   const router = useRouter();
   const supabase = createClient();
   const { completeNudge } = useOnboarding();
@@ -101,33 +106,7 @@ export default function DailyStoryPreviewPage() {
   };
 
   if (loading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center">
-        <div className="flex items-center gap-3 text-gray-600">
-          <svg
-            className="h-5 w-5 animate-spin text-gray-400"
-            xmlns="http://www.w3.org/2000/svg"
-            fill="none"
-            viewBox="0 0 24 24"
-          >
-            <circle
-              className="opacity-25"
-              cx="12"
-              cy="12"
-              r="10"
-              stroke="currentColor"
-              strokeWidth="4"
-            />
-            <path
-              className="opacity-75"
-              fill="currentColor"
-              d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
-            />
-          </svg>
-          <span>Generating daily story...</span>
-        </div>
-      </div>
-    );
+    return <AppPageLoading label={convertText(t("Generating daily story..."))} />;
   }
 
   if (!story) {
@@ -135,18 +114,18 @@ export default function DailyStoryPreviewPage() {
       <div className="flex min-h-screen items-center justify-center px-4">
         <div className="max-w-md text-center">
           <div className="mb-4 text-gray-600">
-            {error || "Daily stories need vocabulary from your topic islands!"}
+            {error || convertText(t("Daily stories need vocabulary from your topic islands!"))}
           </div>
           {error?.includes("topic island") && (
             <div className="mt-6">
               <p className="mb-4 text-sm text-gray-500">
-                Create a topic island and generate words first, then come back for your daily story.
+                {convertText(t("Create a topic island and generate words first, then come back for your daily story."))}
               </p>
               <Link
                 href="/app/topic-islands"
                 className="inline-flex items-center justify-center rounded-lg border border-gray-900 bg-gray-900 px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-gray-800"
               >
-                Create Topic Island
+                {convertText(t("Create Topic Island"))}
               </Link>
             </div>
           )}
