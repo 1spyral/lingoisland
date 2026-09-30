@@ -13,6 +13,7 @@ import {
   useProgressIslandUpgrade,
   checkAndShowUpgrade,
 } from "@/contexts/ProgressIslandUpgradeContext";
+import AppPageLoading from "@/components/app/AppPageLoading";
 import SpeakerButton from "@/components/app/SpeakerButton";
 import {
   hskFlashcardsDeck,
@@ -157,33 +158,7 @@ export default function HskFlashcardsSession({
   };
 
   if (loading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-gray-50">
-        <div className="flex items-center gap-3 text-gray-600">
-          <svg
-            className="h-5 w-5 animate-spin text-gray-400"
-            xmlns="http://www.w3.org/2000/svg"
-            fill="none"
-            viewBox="0 0 24 24"
-          >
-            <circle
-              className="opacity-25"
-              cx="12"
-              cy="12"
-              r="10"
-              stroke="currentColor"
-              strokeWidth="4"
-            />
-            <path
-              className="opacity-75"
-              fill="currentColor"
-              d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
-            />
-          </svg>
-          <span>Loading flashcards...</span>
-        </div>
-      </div>
-    );
+    return <AppPageLoading label="Loading flashcards..." />;
   }
 
   if (cards.length === 0) {

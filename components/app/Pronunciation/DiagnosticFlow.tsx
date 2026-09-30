@@ -10,6 +10,7 @@ import {
   stopPcmRecording,
   type PcmRecorderHandle,
 } from "@/lib/audio/recordPcm";
+import AppPageLoading from "@/components/app/AppPageLoading";
 
 type PassLabel = "day1" | "remeasure";
 
@@ -216,7 +217,7 @@ export default function DiagnosticFlow({
   const current = items[itemIndex];
 
   if (loading) {
-    return <div className="flex min-h-[50vh] items-center justify-center text-[var(--lingo-text-muted)]">Loading…</div>;
+    return <AppPageLoading />;
   }
 
   if (phase === "intro") {

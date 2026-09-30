@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/browser";
 import { useCharacterSet } from "@/contexts/CharacterSetContext";
+import { useLanguage } from "@/contexts/LanguageContext";
 import StorySideChat from "@/components/stories/StorySideChat";
 import type { IslandChatSelectedWord } from "@/components/IslandSideChat";
 import { pinyin } from "pinyin-pro";
@@ -57,6 +58,7 @@ export default function StoryReader({
   const router = useRouter();
   const supabase = createClient();
   const { convertText } = useCharacterSet();
+  const { t } = useLanguage();
   const [showPinyin, setShowPinyin] = useState(false);
   const [showEnglish, setShowEnglish] = useState(Boolean(story.story_en));
   const [storyPinyin, setStoryPinyin] = useState(story.story_pinyin || "");
@@ -342,7 +344,7 @@ export default function StoryReader({
                 onClick={() => router.push("/app/stories")}
                 className="text-sm font-medium text-gray-600 transition-colors hover:text-gray-900"
               >
-                ← Back to Stories
+                {convertText(t("← Back to Stories"))}
               </button>
               <div className="flex items-center gap-4">
                 {story.source_island_ids?.length ? (
@@ -354,7 +356,7 @@ export default function StoryReader({
                     }
                     className="text-sm font-medium text-gray-600 transition-colors hover:text-gray-900"
                   >
-                    View Topic Island
+                    {convertText(t("View Topic Island"))}
                   </button>
                 ) : null}
                 {story.kind === "daily" && !story.saved && onSaveDaily ? (
@@ -363,7 +365,7 @@ export default function StoryReader({
                     disabled={savingDaily}
                     className="rounded-lg border border-gray-900 bg-gray-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-gray-800 disabled:opacity-50"
                   >
-                    {savingDaily ? "Saving..." : "Save Daily Story"}
+                    {convertText(t(savingDaily ? "Saving..." : "Save Daily Story"))}
                   </button>
                 ) : null}
               </div>
@@ -373,9 +375,9 @@ export default function StoryReader({
               <div className="mb-6">
                 <div className="mb-3 flex items-center gap-3 text-sm text-gray-600">
                   <span className="rounded-full border border-gray-200 bg-gray-100 px-2.5 py-1 text-xs font-semibold uppercase tracking-wide text-gray-700">
-                    {story.kind === "daily" ? "Daily" : "Custom"}
+                    {convertText(t(story.kind === "daily" ? "Daily" : "Custom"))}
                   </span>
-                  <span>Level: {hskLabelForCefr(story.level)}</span>
+                  <span>{convertText(t("Level"))}: {hskLabelForCefr(story.level)}</span>
                   {dateLabel ? <span>{dateLabel}</span> : null}
                 </div>
                 {isEditingTitle ? (
@@ -400,14 +402,14 @@ export default function StoryReader({
                       disabled={savingTitle || !editedTitle.trim()}
                       className="rounded-lg border border-gray-900 bg-gray-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-gray-800 disabled:opacity-50"
                     >
-                      {savingTitle ? "Saving..." : "Save"}
+                      {convertText(t(savingTitle ? "Saving..." : "Save"))}
                     </button>
                     <button
                       onClick={handleCancelEditTitle}
                       disabled={savingTitle}
                       className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 disabled:opacity-50"
                     >
-                      Cancel
+                      {convertText(t("Cancel"))}
                     </button>
                   </div>
                 ) : showPinyin && titlePinyinParts.length > 0 ? (
@@ -448,20 +450,20 @@ export default function StoryReader({
                     <button
                       onClick={handleStartEditTitle}
                       className="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm font-medium text-gray-600 opacity-0 transition-all hover:border-gray-300 hover:text-gray-900 group-hover:opacity-100"
-                      title="Edit title"
+                      title={convertText(t("Edit title"))}
                     >
-                      Edit
+                      {convertText(t("Edit"))}
                     </button>
                   </div>
                 )}
                 {story.topic ? (
                   <p className="mt-2 text-sm text-gray-500">
-                    Topic: {story.topic}
+                    {convertText(t("Topic"))}: {convertText(story.topic)}
                   </p>
                 ) : null}
                 {story.source_island_ids?.length ? (
                   <p className="mt-1 text-xs text-gray-400">
-                    Islands: {story.source_island_ids.length}
+                    {convertText(t("Islands"))}: {story.source_island_ids.length}
                   </p>
                 ) : null}
               </div>
@@ -476,7 +478,7 @@ export default function StoryReader({
                         : "border-gray-200 bg-white text-gray-700"
                     }`}
                   >
-                    {showPinyin ? "Hide" : "Show"} Pinyin
+                    {convertText(t(showPinyin ? "Hide Pinyin" : "Show Pinyin"))}
                   </button>
                 ) : (
                   <button
@@ -484,7 +486,7 @@ export default function StoryReader({
                     disabled={pinyinLoading}
                     className="rounded-full border border-gray-900 bg-white px-3 py-1 text-xs font-semibold uppercase tracking-wide text-gray-900 transition-colors hover:bg-gray-50 disabled:opacity-50"
                   >
-                    {pinyinLoading ? "Generating..." : "Generate Pinyin"}
+                    {convertText(t(pinyinLoading ? "Generating..." : "Generate Pinyin"))}
                   </button>
                 )}
                 {hasEnglish ? (
@@ -496,7 +498,7 @@ export default function StoryReader({
                         : "border-gray-200 bg-white text-gray-700"
                     }`}
                   >
-                    {showEnglish ? "Hide" : "Show"} English
+                    {convertText(t(showEnglish ? "Hide English" : "Show English"))}
                   </button>
                 ) : (
                   <button
@@ -534,7 +536,7 @@ export default function StoryReader({
                     disabled={englishLoading}
                     className="rounded-full border border-gray-900 bg-white px-3 py-1 text-xs font-semibold uppercase tracking-wide text-gray-900 transition-colors hover:bg-gray-50 disabled:opacity-50"
                   >
-                    {englishLoading ? "Generating..." : "Generate English"}
+                    {convertText(t(englishLoading ? "Generating..." : "Generate English"))}
                   </button>
                 )}
               </div>
@@ -546,7 +548,7 @@ export default function StoryReader({
                     type="sentence"
                     size="md"
                   />
-                  <span className="text-sm text-gray-500">Play full story</span>
+                  <span className="text-sm text-gray-500">{convertText(t("Play full story"))}</span>
                 </div>
                 {showPinyin && storyPinyinParts.length > 0 ? (
                   <div className="flex flex-wrap gap-x-2 gap-y-4 text-gray-900">
@@ -577,11 +579,11 @@ export default function StoryReader({
 
             <div className="mt-10">
               <h2 className="mb-4 text-xl font-semibold text-gray-900">
-                Target words
+                {convertText(t("Target words"))}
               </h2>
               {targetWords.length === 0 ? (
                 <div className="rounded-lg border border-gray-200 bg-white p-6 text-sm text-gray-600">
-                  No target words were attached to this story.
+                  {convertText(t("No target words were attached to this story."))}
                 </div>
               ) : (
                 <div className="space-y-4">
@@ -625,16 +627,16 @@ export default function StoryReader({
                             alt="Huáhuá" 
                             className="h-5 w-5 rounded-full"
                           />
-                          <span>Ask for help</span>
+                          <span>{convertText(t("Ask for help"))}</span>
                         </button>
                         <button
                           onClick={() => handleAddToQuizClick(word.id)}
                           disabled={addedItems.has(`word-${word.id}`)}
                           className="rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm transition-all hover:border-gray-300 hover:shadow-md disabled:bg-gray-50 disabled:text-gray-500"
                         >
-                          {addedItems.has(`word-${word.id}`)
-                            ? "✓ In quiz"
-                            : "Add to quiz"}
+                          {convertText(
+                            t(addedItems.has(`word-${word.id}`) ? "✓ In quiz" : "Add to quiz"),
+                          )}
                         </button>
                       </div>
                     </div>
@@ -647,29 +649,28 @@ export default function StoryReader({
               <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
                 <div className="w-full max-w-md rounded-xl border border-gray-200 bg-white p-6 shadow-xl">
                   <h3 className="mb-2 text-xl font-semibold text-gray-900">
-                    Add to Quiz
+                    {convertText(t("Add to Quiz"))}
                   </h3>
                   <p className="mb-6 text-sm text-gray-600">
-                    This will create 2 cards: Chinese → English and English →
-                    Chinese.
+                    {convertText(t("This will create 2 cards: Chinese → English and English → Chinese."))}
                   </p>
 
                   {showCreateNew ? (
                     <div className="space-y-4">
                       <div>
                         <label className="mb-2 block text-sm font-medium text-gray-900">
-                          Quiz Island Name
+                          {convertText(t("Quiz Island Name"))}
                         </label>
                         <input
                           type="text"
                           value={newQuizIslandName}
                           onChange={(e) => setNewQuizIslandName(e.target.value)}
-                          placeholder="e.g., Basic Vocabulary"
+                          placeholder={convertText(t("e.g., Basic Vocabulary"))}
                           className="w-full rounded-lg border border-gray-200 px-4 py-2.5 text-sm transition-colors focus:border-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-200"
                           autoFocus
                         />
                         <p className="mt-1 text-xs text-gray-500">
-                          Quiz islands are for Chinese practice only
+                          {convertText(t("Quiz islands are for Chinese practice only"))}
                         </p>
                       </div>
                       <div className="flex justify-end space-x-3">
@@ -684,7 +685,7 @@ export default function StoryReader({
                           }}
                           className="rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50"
                         >
-                          Cancel
+                          {convertText(t("Cancel"))}
                         </button>
                         <button
                           onClick={handleCreateNewQuizIsland}
@@ -693,7 +694,7 @@ export default function StoryReader({
                           }
                           className="rounded-lg border border-gray-900 bg-gray-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-gray-800 disabled:opacity-50"
                         >
-                          {creatingQuizIsland ? "Creating..." : "Create & Add"}
+                          {convertText(t(creatingQuizIsland ? "Creating..." : "Create & Add"))}
                         </button>
                       </div>
                     </div>
@@ -708,11 +709,11 @@ export default function StoryReader({
                           className="w-full rounded-lg border border-gray-200 px-4 py-2.5 text-sm transition-colors focus:border-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-200"
                         >
                           {quizIslands.length === 0 ? (
-                            <option value="">No quiz islands yet</option>
+                            <option value="">{convertText(t("No quiz islands yet"))}</option>
                           ) : (
                             quizIslands.map((island) => (
                               <option key={island.id} value={island.id}>
-                                {island.name}
+                                {convertText(island.name)}
                               </option>
                             ))
                           )}
@@ -723,7 +724,7 @@ export default function StoryReader({
                           onClick={() => setShowCreateNew(true)}
                           className="mb-6 w-full rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50"
                         >
-                          + Create new quiz island
+                          {convertText(t("+ Create new quiz island"))}
                         </button>
                       )}
                       <div className="flex justify-end space-x-3">
@@ -739,14 +740,14 @@ export default function StoryReader({
                           }}
                           className="rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50"
                         >
-                          Cancel
+                          {convertText(t("Cancel"))}
                         </button>
                         <button
                           onClick={() => handleAddToQuizConfirm()}
                           disabled={addingToQuiz || !selectedQuizIslandId}
                           className="rounded-lg border border-gray-900 bg-gray-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-gray-800 disabled:opacity-50"
                         >
-                          {addingToQuiz ? "Adding..." : "Add"}
+                          {convertText(t(addingToQuiz ? "Adding..." : "Add"))}
                         </button>
                       </div>
                     </>

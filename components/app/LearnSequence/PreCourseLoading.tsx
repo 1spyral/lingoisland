@@ -6,6 +6,8 @@ import {
   LINGO_ACCENT_GRADIENT_GLOSSY,
 } from "@/lib/glossy-theme";
 import { LearnEyebrow, LearnSequenceCard } from "./shell";
+import { useLanguage } from "@/contexts/LanguageContext";
+import { useCharacterSet } from "@/contexts/CharacterSetContext";
 
 interface PreCourseLoadingProps {
   topic: string;
@@ -18,13 +20,15 @@ export default function PreCourseLoading({
   progressLabel,
   progressPercentage,
 }: PreCourseLoadingProps) {
+  const { t } = useLanguage();
+  const { convertText } = useCharacterSet();
   return (
     <div className="hsk-app-theme lingo-body flex min-h-screen flex-col bg-white">
       <header className="border-b border-[var(--lingo-accent-border)]">
         <div className="mx-auto max-w-3xl px-4 py-5 sm:px-6">
-          <LearnEyebrow>Getting started</LearnEyebrow>
+          <LearnEyebrow>{t("Getting started")}</LearnEyebrow>
           <h1 className="lingo-display mt-1.5 text-[30px] leading-tight text-[var(--lingo-navy)] sm:text-[34px]">
-            Preparing your lesson
+            {t("Preparing your lesson")}
           </h1>
         </div>
       </header>
@@ -35,10 +39,10 @@ export default function PreCourseLoading({
             <HuahuaAvatar className="h-14 w-14" />
           </div>
           <h2 className="lingo-display mb-2 text-xl text-[var(--lingo-navy)]">
-            {topic}
+            {convertText(topic)}
           </h2>
           <div className="mb-2 flex justify-between text-xs font-medium text-[var(--lingo-text-muted)]">
-            <span>Building your island</span>
+            <span>{t("Building your island")}</span>
             <span>{progressLabel}</span>
           </div>
           <div className="mb-6 h-2 w-full overflow-hidden rounded-full bg-[var(--lingo-sky)]">
@@ -53,7 +57,7 @@ export default function PreCourseLoading({
           </div>
 
           <p className="text-sm text-[var(--lingo-text-muted)]">
-            华华 is picking words and example sentences for you…
+            {t("华华 is picking words and example sentences for you…")}
           </p>
         </LearnSequenceCard>
       </div>

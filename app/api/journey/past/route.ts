@@ -3,6 +3,19 @@ import { createClient } from '@/lib/supabase/server'
 
 export const dynamic = 'force-dynamic'
 
+function resolveJourneyNodeType(
+  row: { node_type?: string | null },
+  stepOrder: number
+): 'island' | 'story' | 'tone_practice' {
+  const stored = row.node_type
+  if (stored === 'tone_practice' || stored === 'story' || stored === 'island') {
+    return stored
+  }
+  if (stepOrder >= 200) return 'tone_practice'
+  if (stepOrder > 100) return 'story'
+  return 'island'
+}
+
 export async function GET() {
   try {
     const supabase = await createClient()
@@ -29,18 +42,17 @@ export async function GET() {
       journey_islands: ((journey.journey_islands ?? []) as any[])
         .map((row: any) => {
           const stepOrder = Number(row.step_order ?? 0)
-
-          // Always derive node_type from step_order — the DB default is 'island' so
-          // old story rows (step_order 102/105) may have node_type = 'island' in the column.
-          const nodeType: 'island' | 'story' = stepOrder > 100 ? 'story' : 'island'
+          const nodeType = resolveJourneyNodeType(row, stepOrder)
 
           // Use stored position only when it's a valid path position (< 100).
           // Old rows were backfilled with position = step_order, giving 102/105 for stories.
-          // 7-node path: I1(1) · I2(2) · SA(3) · I3(4) · I4(5) · I5(6) · SB(7)
           const storedPosition = row.position != null ? Number(row.position) : null
           let position: number
           if (storedPosition != null && storedPosition < 100) {
             position = storedPosition
+          } else if (nodeType === 'tone_practice') {
+            const toneMap: Record<number, number> = { 201: 2, 202: 5, 203: 7, 204: 9 }
+            position = toneMap[stepOrder] ?? stepOrder
           } else if (nodeType === 'story') {
             position = stepOrder === 102 ? 3 : 7
           } else {
@@ -53,9 +65,10 @@ export async function GET() {
           // 2. Linked topic_island word_target (actual value when island was generated)
           // 3. Design rule: island 1 = 5 words, islands 2-5 = 10 words
           const linkedWordTarget = row.linked_island?.word_target ?? null
-          const wordCount: number | null = nodeType === 'story'
-            ? null
-            : (row.word_count ?? linkedWordTarget ?? (stepOrder === 1 ? 5 : 10))
+          const wordCount: number | null =
+            nodeType === 'story' || nodeType === 'tone_practice'
+              ? null
+              : (row.word_count ?? linkedWordTarget ?? (stepOrder === 1 ? 5 : 10))
 
           // Strip the nested join object before returning
           const { linked_island: _drop, ...rest } = row

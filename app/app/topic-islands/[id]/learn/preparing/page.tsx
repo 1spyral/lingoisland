@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams, usePathname, useRouter, useSearchParams } from "next/navigation";
 import PreCourseLoading from "@/components/app/LearnSequence/PreCourseLoading";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 type IslandProgress = {
   id: string;
@@ -29,12 +30,13 @@ export default function PrepareIslandLessonPage() {
   const basePath = pathname.startsWith("/hsk/app") ? "/hsk/app" : "/app";
   const startedGeneration = useRef(false);
   const [data, setData] = useState<IslandResponse | null>(null);
+  const { t } = useLanguage();
   const [error, setError] = useState("");
 
   const load = useCallback(async () => {
     const response = await fetch(`/api/topic-islands/${islandId}`, { cache: "no-store" });
     if (!response.ok) {
-      setError("We couldn't load this island. Please return to your islands and try again.");
+      setError(t("We couldn't load this island. Please return to your islands and try again."));
       return;
     }
     const next = (await response.json()) as IslandResponse;
@@ -65,7 +67,7 @@ export default function PrepareIslandLessonPage() {
       setError(
         typeof result.error === "string"
           ? result.error
-          : "We couldn't finish the example sentences.",
+          : t("We couldn't finish the example sentences."),
       );
     }
     await load();
@@ -118,14 +120,14 @@ export default function PrepareIslandLessonPage() {
       )
     : 0;
   const progressLabel = island
-    ? `${Math.min(savedSentences, requiredSentences)} of ${requiredSentences} example sentences`
-    : "Loading your island…";
+    ? `${Math.min(savedSentences, requiredSentences)} ${t("of")} ${requiredSentences} ${t("example sentences")}`
+    : t("Loading your island…");
 
   if (error) {
     return (
       <main className="hsk-app-theme lingo-body flex min-h-screen items-center justify-center bg-white px-4">
         <div className="max-w-md rounded-2xl border border-red-200 bg-red-50 p-6 text-center">
-          <h1 className="lingo-display text-xl text-red-900">Lesson preparation paused</h1>
+          <h1 className="lingo-display text-xl text-red-900">{t("Lesson preparation paused")}</h1>
           <p className="mt-2 text-sm text-red-700">{error}</p>
           <button
             type="button"
@@ -135,7 +137,7 @@ export default function PrepareIslandLessonPage() {
             }}
             className="mt-5 rounded-xl bg-[var(--lingo-navy)] px-5 py-3 text-sm font-bold text-white"
           >
-            Retry preparation
+            {t("Retry preparation")}
           </button>
         </div>
       </main>
@@ -144,7 +146,7 @@ export default function PrepareIslandLessonPage() {
 
   return (
     <PreCourseLoading
-      topic={island?.topic ?? "Your topic island"}
+      topic={island?.topic ?? t("Your island")}
       progressLabel={progressLabel}
       progressPercentage={progress}
     />

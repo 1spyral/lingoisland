@@ -4,8 +4,10 @@ import { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
 import { useCharacterSet } from "@/contexts/CharacterSetContext";
+import { useLanguage } from "@/contexts/LanguageContext";
 import { QuizMasteryStats } from "@/components/app/QuizMasteryStats";
 import ProgressModal from "@/components/app/ProgressModal";
+import AppPageLoading from "@/components/app/AppPageLoading";
 
 interface QuizIsland {
   id: string;
@@ -19,6 +21,7 @@ export default function QuizIslandDetailPage() {
   const params = useParams();
   const quizIslandId = params.id as string;
   const { convertText } = useCharacterSet();
+  const { t } = useLanguage();
 
   const [quizIsland, setQuizIsland] = useState<QuizIsland | null>(null);
   const [loading, setLoading] = useState(true);
@@ -94,39 +97,13 @@ export default function QuizIslandDetailPage() {
   };
 
   if (loading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-gray-50">
-        <div className="flex items-center gap-3 text-gray-600">
-          <svg
-            className="h-5 w-5 animate-spin text-gray-400"
-            xmlns="http://www.w3.org/2000/svg"
-            fill="none"
-            viewBox="0 0 24 24"
-          >
-            <circle
-              className="opacity-25"
-              cx="12"
-              cy="12"
-              r="10"
-              stroke="currentColor"
-              strokeWidth="4"
-            />
-            <path
-              className="opacity-75"
-              fill="currentColor"
-              d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
-            />
-          </svg>
-          <span>Loading quiz island...</span>
-        </div>
-      </div>
-    );
+    return <AppPageLoading label={convertText(t("Loading quiz island..."))} />;
   }
 
   if (!quizIsland) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-gray-50">
-        <div className="text-gray-600">Quiz island not found</div>
+        <div className="text-gray-600">{convertText(t("Quiz island not found"))}</div>
       </div>
     );
   }
@@ -142,7 +119,7 @@ export default function QuizIslandDetailPage() {
             onClick={() => router.push("/app/quiz")}
             className="mb-4 text-sm font-medium text-gray-600 transition-colors hover:text-gray-900"
           >
-            ← Back to Quiz
+            ← {convertText(t("Back to Quiz"))}
           </button>
           {isEditingName ? (
             <div className="flex items-center gap-2 mb-2">
@@ -166,14 +143,14 @@ export default function QuizIslandDetailPage() {
                 disabled={savingName || !editedName.trim()}
                 className="rounded-lg border border-gray-900 bg-gray-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-gray-800 disabled:opacity-50"
               >
-                {savingName ? "Saving..." : "Save"}
+                {savingName ? convertText(t("Saving...")) : convertText(t("Save"))}
               </button>
               <button
                 onClick={handleCancelEditName}
                 disabled={savingName}
                 className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 disabled:opacity-50"
               >
-                Cancel
+                {convertText(t("Cancel"))}
               </button>
             </div>
           ) : (
@@ -184,15 +161,15 @@ export default function QuizIslandDetailPage() {
               <button
                 onClick={handleStartEditName}
                 className="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm font-medium text-gray-600 opacity-0 transition-all hover:border-gray-300 hover:text-gray-900 group-hover:opacity-100"
-                title="Edit name"
+                title={convertText(t("Edit name"))}
               >
-                Edit
+                {convertText(t("Edit"))}
               </button>
             </div>
           )}
           <p className="text-sm text-gray-600">
-            Chinese • {quizIsland.card_count} card
-            {quizIsland.card_count !== 1 ? "s" : ""}
+            {convertText(t("Chinese"))} • {quizIsland.card_count}{" "}
+            {convertText(t(quizIsland.card_count !== 1 ? "cards" : "card"))}
           </p>
         </div>
 
@@ -200,13 +177,13 @@ export default function QuizIslandDetailPage() {
         {!hasCards ? (
           <div className="rounded-xl border border-gray-200 bg-white p-12 text-center shadow-sm">
             <p className="mb-6 text-gray-600">
-              This quiz island is empty. Add cards to start practicing.
+              {convertText(t("This quiz island is empty. Add cards to start practicing."))}
             </p>
             <Link
               href={`/app/quiz/${quizIslandId}/add`}
               className="inline-block rounded-lg border border-gray-900 bg-gray-900 px-6 py-3 text-base font-medium text-white transition-colors hover:bg-gray-800"
             >
-              Add Cards
+              {convertText(t("Add Cards"))}
             </Link>
           </div>
         ) : (
@@ -214,29 +191,33 @@ export default function QuizIslandDetailPage() {
           <div className="space-y-6">
             <div className="rounded-xl border border-gray-200 bg-white p-8 shadow-sm">
               <h2 className="mb-6 text-xl font-semibold text-gray-900">
-                Ready to practice?
+                {convertText(t("Ready to practice?"))}
               </h2>
               <button
                 onClick={() => router.push(`/app/quiz/${quizIslandId}/session`)}
                 className="mb-2 w-full rounded-lg border border-gray-900 bg-gray-900 px-6 py-4 text-center text-base font-medium text-white transition-colors hover:bg-gray-800"
               >
-                Start Quiz
+                {convertText(t("Start Quiz"))}
               </button>
               <p className="mb-4 text-sm text-gray-500">
-                Reviews here count toward your Progress Island on Home — every 10 cards levels up the island.
+                {convertText(
+                  t(
+                    "Reviews here count toward your Progress Island on Home — every 10 cards levels up the island.",
+                  ),
+                )}
               </p>
               <div className="mt-4 flex gap-3">
                 <Link
                   href={`/app/quiz/${quizIslandId}/add`}
                   className="flex-1 rounded-lg border border-gray-200 bg-white px-4 py-2 text-center text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50"
                 >
-                  Add Cards
+                  {convertText(t("Add Cards"))}
                 </Link>
                 <Link
                   href={`/app/quiz/${quizIslandId}/manage`}
                   className="flex-1 rounded-lg border border-gray-200 bg-white px-4 py-2 text-center text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50"
                 >
-                  Manage
+                  {convertText(t("Manage"))}
                 </Link>
               </div>
             </div>

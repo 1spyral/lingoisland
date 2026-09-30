@@ -5,7 +5,7 @@ import { getLocalDateKey } from "@/lib/utils/date";
 import DailyStoryCard from "@/components/stories/DailyStoryCard";
 import StoriesList from "@/components/stories/StoriesList";
 import type { StorySummary } from "@/components/stories/StoryCard";
-import { OceanBackground } from "@/components/OceanBackground";
+import T from "@/components/app/T";
 import { getEntitlements } from "@/lib/entitlements";
 
 export default async function StoriesPage() {
@@ -46,29 +46,38 @@ export default async function StoriesPage() {
   }
 
   return (
-    <div className="relative min-h-screen p-4 md:p-8">
-      <OceanBackground />
-      <div className="relative z-10 mx-auto max-w-6xl">
-        <div className="mb-6 md:mb-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:gap-4">
-          <h1 className="text-2xl md:text-3xl font-bold text-gray-900">Stories</h1>
-          <Link
-            href="/app/stories/new"
-            className="rounded-lg border-2 border-gray-900 bg-white px-5 md:px-6 py-2.5 md:py-3 text-sm md:text-base font-bold uppercase tracking-wide text-gray-900 transition-colors hover:bg-gray-50 shadow-[0_0_14px_3px_rgba(147,197,253,0.6)]"
-          >
-            Create new story
-          </Link>
+    <div className="mx-auto max-w-[1200px] px-4 py-8 md:px-6">
+      <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-[var(--lingo-blue)]">
+            <T k="Stories" />
+          </p>
+          <h1 className="lingo-display mt-1 max-w-xl text-[34px] font-bold leading-tight text-[var(--lingo-navy)] sm:text-[40px]">
+            <T k="Stories" />
+          </h1>
+          <p className="mt-2 max-w-lg text-sm leading-relaxed text-[var(--lingo-text-muted)]">
+            <T k="Real stories. Real progress. A more confident you." />
+          </p>
         </div>
-
-        <div className="mb-8 md:mb-10">
-          <DailyStoryCard variant="stories" story={dailyStory} />
-        </div>
-
-        <div className="mb-3 md:mb-4 flex items-center justify-between">
-          <h2 className="text-lg md:text-xl font-semibold text-gray-900">All stories</h2>
-        </div>
-
-        <StoriesList stories={stories} />
+        <Link
+          href="/app/stories/new"
+          className="inline-flex items-center justify-center gap-1.5 rounded-2xl bg-[var(--lingo-navy)] px-5 py-3 text-sm font-bold text-white shadow-sm transition-colors hover:bg-[var(--lingo-navy-soft)]"
+        >
+          <span aria-hidden>+</span>
+          <T k="Create New Story" />
+        </Link>
       </div>
+
+      <div className="mb-8">
+        <DailyStoryCard variant="stories" story={dailyStory} />
+      </div>
+
+      <section>
+        <h2 className="lingo-display mb-3.5 text-xl font-bold text-[var(--lingo-navy)]">
+          <T k="All stories" />
+        </h2>
+        <StoriesList stories={stories} />
+      </section>
     </div>
   );
 }

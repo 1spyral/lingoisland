@@ -5,11 +5,11 @@ import { createClient } from "@/lib/supabase/browser";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
+import { BookOpen, CheckCircle2, ChevronRight, Layers, Plus } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useCharacterSet } from "@/contexts/CharacterSetContext";
 import UpgradeModal from "@/components/app/UpgradeModal";
-import { OceanBackground } from "@/components/OceanBackground";
-import { coverUrlFromKey } from "@/lib/islandLibrary";
+import { capybaraIslandSrc } from "@/lib/capybaraIslands";
 import { useSubscription } from "@/hooks/useSubscription";
 import {
   SENTENCE_STYLE_OPTIONS,
@@ -17,6 +17,7 @@ import {
 } from "@/lib/sentenceStyle";
 import { PROFILE_LEVEL_OPTIONS } from "@/lib/levelBands";
 import { hskLabelForCefr } from "@/lib/levelBands";
+import AppPageLoading from "@/components/app/AppPageLoading";
 
 interface TopicIsland {
   id: string;
@@ -39,6 +40,122 @@ function islandDetailHref(island: TopicIsland): string {
   return `/app/topic-islands/${island.id}`;
 }
 
+function islandImageSrc(island: TopicIsland): string {
+  return capybaraIslandSrc(island.id);
+}
+
+function statusLabel(status: string): string | null {
+  switch (status) {
+    case "ready":
+      return "Ready";
+    case "draft":
+      return "Draft";
+    case "selecting":
+    case "generating":
+      return "Generating";
+    case "error":
+      return "Needs attention";
+    default:
+      return null;
+  }
+}
+
+function CreateIslandButton({
+  onClick,
+  label,
+  className = "",
+}: {
+  onClick: () => void;
+  label: string;
+  className?: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`inline-flex items-center justify-center gap-1.5 rounded-2xl bg-[var(--lingo-navy)] px-5 py-3 text-sm font-bold text-white shadow-sm transition-colors hover:bg-[var(--lingo-navy-soft)] ${className}`}
+    >
+      <Plus size={16} aria-hidden />
+      {label}
+    </button>
+  );
+}
+
+function IslandCard({
+  island,
+  topic,
+  priority,
+}: {
+  island: TopicIsland;
+  topic: string;
+  priority?: boolean;
+}) {
+  const { t } = useLanguage();
+  const imageSrc = islandImageSrc(island);
+  const wordsOnIsland = island.words_selected ?? 0;
+  const wordMeta =
+    wordsOnIsland > 0
+      ? `${wordsOnIsland} ${t("words")}`
+      : island.status === "ready"
+        ? `${island.word_target} ${t("words")}`
+        : null;
+  const levelLabel = hskLabelForCefr(island.level);
+  const status = statusLabel(island.status);
+  const showStatus = status && status !== "Ready";
+
+  return (
+    <Link
+      href={islandDetailHref(island)}
+      className="group block overflow-hidden rounded-[28px] border bg-white transition-[transform,box-shadow] duration-200 hover:-translate-y-0.5 motion-reduce:transition-none motion-reduce:hover:translate-y-0"
+      style={{
+        borderColor: "var(--lingo-border)",
+        boxShadow: "var(--lingo-shadow-card)",
+      }}
+    >
+      <div className="relative aspect-[16/10] overflow-hidden bg-[var(--lingo-sky-pale)] px-4 py-3">
+        <div className="relative h-full w-full transition-transform duration-300 ease-out will-change-transform group-hover:scale-[1.02] motion-reduce:transition-none motion-reduce:group-hover:scale-100">
+          <Image
+            src={imageSrc}
+            alt={topic}
+            fill
+            className="object-contain"
+            priority={priority}
+            loading={priority ? "eager" : "lazy"}
+            sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
+          />
+        </div>
+        {showStatus && (
+          <span
+            className="absolute left-3 top-3 rounded-full px-2.5 py-1 text-[11px] font-bold"
+            style={{
+              background: status === "Needs attention" ? "#fdecea" : "#eef9fc",
+              color: status === "Needs attention" ? "#9f1c14" : "var(--lingo-navy)",
+              border: `1px solid ${status === "Needs attention" ? "#f5c2c0" : "var(--lingo-border)"}`,
+            }}
+          >
+            {t(status)}
+          </span>
+        )}
+      </div>
+      <div className="flex items-start justify-between gap-3 px-5 py-4">
+        <div className="min-w-0">
+          <h3 className="line-clamp-2 text-base font-bold leading-snug text-[var(--lingo-navy)]">
+            {topic}
+          </h3>
+          <p className="mt-1 truncate text-sm text-[var(--lingo-text-muted)]">
+            {[levelLabel, wordMeta].filter(Boolean).join(" · ")}
+          </p>
+        </div>
+        <ChevronRight
+          size={18}
+          className="mt-0.5 shrink-0 text-[var(--lingo-blue)] transition-transform duration-200 group-hover:translate-x-0.5 motion-reduce:transition-none motion-reduce:group-hover:translate-x-0"
+          aria-hidden
+        />
+      </div>
+    </Link>
+  );
+}
+
 export default function TopicIslandsPage() {
   const router = useRouter();
   const pathname = usePathname();
@@ -51,9 +168,7 @@ export default function TopicIslandsPage() {
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [creating, setCreating] = useState(false);
-  const [deleting, setDeleting] = useState<string | null>(null);
   const [userDefaultLevel, setUserDefaultLevel] = useState<string>("B1");
-  const [visibleCount, setVisibleCount] = useState(3); // Show 3 islands initially (1 on mobile via CSS)
   const [formData, setFormData] = useState({
     topic: "",
     level: "B1",
@@ -67,27 +182,19 @@ export default function TopicIslandsPage() {
   });
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
 
-
-  const observerTarget = useRef<HTMLDivElement>(null);
   const didHydrateFromQuery = useRef(false);
   const topicFromQueryParams = useRef<string | null>(null);
 
   // Handle query params for modal control - SINGLE EFFECT
   useEffect(() => {
-    console.log("[Topic Islands] Query params effect triggered");
     const createParam = searchParams.get("create");
     const topicParam = searchParams.get("topic");
 
-    console.log("[Topic Islands] Params - create:", createParam, "topic:", topicParam, "didHydrate:", didHydrateFromQuery.current);
-
     if (createParam === "1") {
       if (!didHydrateFromQuery.current && topicParam) {
-        // First time seeing these params - hydrate the form
         const decodedTopic = decodeURIComponent(topicParam);
         topicFromQueryParams.current = decodedTopic;
-        console.log("[Topic Islands] Decoded topic:", decodedTopic);
-        
-        // Set form data with the topic - use functional update to ensure we get latest state
+
         setFormData({
           topic: decodedTopic,
           level: userDefaultLevel || "B1",
@@ -99,14 +206,11 @@ export default function TopicIslandsPage() {
           reviewVocabMode: "random",
           selectedReviewIslands: [],
         });
-        
+
         didHydrateFromQuery.current = true;
-        console.log("[Topic Islands] Form data set to:", { topic: decodedTopic });
       }
-      
-      // Always open modal if create=1
+
       if (!showCreateModal) {
-        console.log("[Topic Islands] Opening modal");
         setShowCreateModal(true);
       }
     }
@@ -134,9 +238,8 @@ export default function TopicIslandsPage() {
         const data = await response.json();
         const profileLevel = data.cefrLevel || "B1";
         setUserDefaultLevel(profileLevel);
-        
-        // Update form data with profile level if form is still at default
-        setFormData(prev => ({
+
+        setFormData((prev) => ({
           ...prev,
           level: prev.level === "B1" ? profileLevel : prev.level,
         }));
@@ -149,8 +252,6 @@ export default function TopicIslandsPage() {
   // Handle modal open/close and form reset
   useEffect(() => {
     if (!showCreateModal) {
-      // Reset form when modal closes
-      console.log("[Topic Islands] Modal closed - resetting form");
       setFormData({
         topic: "",
         level: userDefaultLevel,
@@ -165,39 +266,11 @@ export default function TopicIslandsPage() {
       didHydrateFromQuery.current = false;
       topicFromQueryParams.current = null;
 
-      // Clean up query params from URL when modal closes
       if (searchParams.get("create") || searchParams.get("topic")) {
         router.replace(pathname, { scroll: false });
       }
     }
   }, [showCreateModal, userDefaultLevel, pathname, router, searchParams]);
-
-  // Infinite scroll: load more islands automatically
-  useEffect(() => {
-    // Don't set up observer if still loading or no islands to observe
-    if (loading || islands.length === 0) return;
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries[0].isIntersecting && visibleCount < islands.length) {
-          // Load 3 more islands when user scrolls near bottom
-          setVisibleCount((prev) => Math.min(prev + 3, islands.length));
-        }
-      },
-      { threshold: 0.5 } // Only trigger when spinner is 50% visible (prevents immediate firing)
-    );
-
-    const currentTarget = observerTarget.current;
-    if (currentTarget) {
-      observer.observe(currentTarget);
-    }
-
-    return () => {
-      if (currentTarget) {
-        observer.unobserve(currentTarget);
-      }
-    };
-  }, [visibleCount, islands.length, loading]);
 
   async function loadIslands() {
     const {
@@ -216,38 +289,6 @@ export default function TopicIslandsPage() {
     }
     setLoading(false);
   }
-
-  const handleDelete = async (islandId: string, e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-
-    if (
-      !confirm(
-        "Are you sure you want to delete this topic island? This will delete all words and sentences.",
-      )
-    ) {
-      return;
-    }
-
-    setDeleting(islandId);
-    try {
-      const response = await fetch(`/api/topic-islands/${islandId}`, {
-        method: "DELETE",
-      });
-
-      if (!response.ok) {
-        throw new Error("Failed to delete island");
-      }
-
-      // Reload islands list
-      await loadIslands();
-    } catch (error) {
-      console.error("Error deleting island:", error);
-      alert("Failed to delete island. Please try again.");
-    } finally {
-      setDeleting(null);
-    }
-  };
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -270,15 +311,14 @@ export default function TopicIslandsPage() {
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        
-        // Check if this is a paywall error
-        if (errorData.code === 'PAYWALL_ISLAND_LIMIT') {
+
+        if (errorData.code === "PAYWALL_ISLAND_LIMIT") {
           setShowCreateModal(false);
           setShowUpgradeModal(true);
           setCreating(false);
           return;
         }
-        
+
         throw new Error(
           errorData.details ||
             errorData.error ||
@@ -288,7 +328,6 @@ export default function TopicIslandsPage() {
 
       const { islandId, sentenceStyle } = await response.json();
 
-      // Prepare review vocab configuration
       const reviewVocabConfig = formData.includeReviewVocab
         ? {
             mode: formData.reviewVocabMode,
@@ -299,10 +338,6 @@ export default function TopicIslandsPage() {
           }
         : undefined;
 
-      // Image generation disabled - using pre-generated library images for cost savings
-
-      // The dedicated preparation page owns generation and only opens Learn
-      // once all persisted sentence tiers are ready.
       const preparationParams = new URLSearchParams({
         sentenceStyle: sentenceStyle ?? formData.sentenceStyle,
       });
@@ -323,165 +358,133 @@ export default function TopicIslandsPage() {
     }
   };
 
-  const vPatternOffsets = [-72, 92, -72];
-  const vJitter = [-10, 6, 14, -6, 12, -8];
-  const sideOffsets = [-18, 22, -10, 16, -24, 12];
+  if (loading) {
+    return <AppPageLoading label={t("Loading...")} />;
+  }
+
+  const readyCount = islands.filter((island) => island.status === "ready").length;
+  const wordsAcrossIslands = islands.reduce(
+    (sum, island) => sum + (island.words_selected ?? 0),
+    0,
+  );
+  const createLabel = t("Create Topic Island");
 
   return (
-    <div className="relative min-h-screen px-6 py-4 md:px-16 md:py-8">
-      <OceanBackground />
-      <div className="relative z-10 mx-auto max-w-5xl">
-        {/* Header - Always visible */}
-        <div className="mb-6 md:mb-8 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <h1 className="text-2xl md:text-3xl font-bold text-gray-900">
-            {t("Topic Islands")}
+    <div className="mx-auto max-w-[1120px] px-4 py-8 md:px-6">
+      <div className="mb-7 flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-[var(--lingo-blue)]">
+            {t("My Islands")}
+          </p>
+          <h1 className="lingo-display mt-1 max-w-xl text-3xl font-bold text-[var(--lingo-navy)] sm:text-4xl">
+            {t("Your Islands")}
           </h1>
-          <button
-            onClick={() => setShowCreateModal(true)}
-            className="rounded-lg border-2 border-gray-900 bg-white px-5 md:px-6 py-2.5 md:py-3 text-sm md:text-base font-bold uppercase tracking-wide text-gray-900 transition-colors hover:bg-gray-50 shadow-[0_0_14px_3px_rgba(147,197,253,0.6)]"
-          >
-            {t("Create Topic Island")}
-          </button>
+          <p className="mt-2 max-w-lg text-sm leading-relaxed text-[var(--lingo-text-muted)]">
+            {t("Keep exploring new topics and build your confidence step by step.")}
+          </p>
         </div>
+        <CreateIslandButton onClick={() => setShowCreateModal(true)} label={createLabel} />
+      </div>
 
-        {/* Loading state */}
-        {loading ? (
-          <div className="flex min-h-[400px] items-center justify-center">
-            <div className="text-gray-600">{t("Loading...")}</div>
-          </div>
-        ) : islands.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-20">
-            <p className="mb-8 text-lg text-gray-600">
-              Create your first topic island to start learning
-            </p>
-            <button
-              onClick={() => setShowCreateModal(true)}
-              className="rounded-lg border-2 border-gray-900 bg-white px-8 py-4 text-base font-bold uppercase tracking-wide text-gray-900 transition-colors hover:bg-gray-50 shadow-[0_0_14px_3px_rgba(147,197,253,0.6)]"
+      {islands.length > 0 && (
+        <div className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-3">
+          {[
+            { label: t("Islands"), value: islands.length, icon: Layers },
+            { label: t("Ready to practice"), value: readyCount, icon: CheckCircle2 },
+            { label: t("Words"), value: wordsAcrossIslands, icon: BookOpen },
+          ].map((stat) => (
+            <div
+              key={stat.label}
+              className="rounded-[28px] border bg-white px-5 py-4"
+              style={{
+                borderColor: "var(--lingo-border)",
+                boxShadow: "var(--lingo-shadow-card)",
+              }}
             >
-              {t("Create Topic Island")}
-            </button>
-          </div>
-        ) : (
-          <>
-            {/* 
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-              {islands.map((island) => (
-                <div
-                  key={island.id}
-                  className="group relative rounded-xl border border-gray-300 bg-white p-6 shadow-sm transition-all hover:border-gray-900 hover:bg-gray-50 hover:shadow-md"
+              <div className="flex items-center gap-3">
+                <span
+                  className="flex h-9 w-9 items-center justify-center rounded-2xl"
+                  style={{ background: "var(--lingo-sky-pale)", color: "var(--lingo-navy)" }}
                 >
-                  <Link
-                    href={`/app/topic-islands/${island.id}`}
-                    className="block"
-                  >
-                    <h3 className="mb-2 text-xl font-bold text-gray-900">
-                      {convertText(island.topic)}
-                    </h3>
-                    <div className="space-y-1 text-sm text-gray-600">
-                      <p>
-                        {t("Level")}: {hskLabelForCefr(island.level)}
-                      </p>
-                      <p>
-                        {t("Word target")}: {island.word_target} {t("words")}
-                      </p>
-                      <p className="capitalize">
-                        {t("Status")}: {t(island.status) || island.status}
-                      </p>
-                    </div>
-                  </Link>
-                  <button
-                    onClick={(e) => handleDelete(island.id, e)}
-                    disabled={deleting === island.id}
-                    className="absolute right-4 top-4 text-sm text-gray-400 opacity-0 transition-opacity hover:text-red-600 group-hover:opacity-100 disabled:opacity-50"
-                    title="Delete island"
-                  >
-                    {deleting === island.id ? "Deleting..." : "×"}
-                  </button>
+                  <stat.icon size={16} aria-hidden />
+                </span>
+                <div>
+                  <p className="lingo-display text-2xl font-bold leading-none text-[var(--lingo-navy)]">
+                    {stat.value}
+                  </p>
+                  <p className="mt-1 text-xs font-semibold text-[var(--lingo-text-muted)]">
+                    {stat.label}
+                  </p>
                 </div>
-              ))}
-            </div>
-            */}
-            <div className="pb-16 pt-24">
-              <div className="grid grid-cols-1 justify-items-center gap-x-24 gap-y-24 md:grid-cols-2 lg:grid-cols-3">
-                {islands.slice(0, visibleCount).map((island, sliceIndex) => {
-                  // Track original index in full islands array
-                  const originalIndex = islands.findIndex(i => i.id === island.id);
-                  const offsetY =
-                    vPatternOffsets[originalIndex % vPatternOffsets.length] +
-                    vJitter[originalIndex % vJitter.length];
-                  const offsetX = sideOffsets[originalIndex % sideOffsets.length];
-                  // Use cover_key from library, fallback to image_url (legacy), then blank
-                  const imageSrc = island.cover_key 
-                    ? coverUrlFromKey(island.cover_key)
-                    : island.image_url || "/blank_island.png";
-                  const isDataUrl = imageSrc.startsWith("data:");
-                  // On mobile (< md): only show first island via CSS so it works before JS hydration
-                  const mobileHide = sliceIndex >= 1 ? "hidden md:block" : "";
-                  return (
-                    <Link
-                      key={island.id}
-                      href={islandDetailHref(island)}
-                      className={`group relative block mx-10 md:mx-16 ${mobileHide}`}
-                      style={{
-                        transform: `translate(${offsetX}px, ${offsetY}px)`,
-                      }}
-                    >
-                      <div className="flex flex-col items-center">
-                        {/* Speech bubble title */}
-                        <div className="relative mb-4 w-auto max-w-[90%] px-6 py-3 bg-white border-[3px] border-black rounded-2xl text-center">
-                          <h3 className="text-base font-bold uppercase tracking-wide text-gray-900 md:text-lg leading-tight">
-                            {convertText(island.topic)}
-                          </h3>
-                          {/* Speech bubble pointer */}
-                          <div className="absolute left-1/2 -bottom-3 -translate-x-1/2 w-0 h-0 border-l-[12px] border-l-transparent border-r-[12px] border-r-transparent border-t-[12px] border-t-black" />
-                          <div className="absolute left-1/2 -bottom-[9px] -translate-x-1/2 w-0 h-0 border-l-[9px] border-l-transparent border-r-[9px] border-r-transparent border-t-[9px] border-t-white" />
-                        </div>
-                        <div className="relative h-56 w-96 md:h-64 md:w-[26rem] transition-transform duration-250 ease-out will-change-transform group-hover:scale-[1.03]">
-                          <Image
-                            src={imageSrc}
-                            alt={convertText(island.topic)}
-                            fill
-                            className="object-contain"
-                            priority={originalIndex < 3}
-                            loading={originalIndex < 3 ? "eager" : "lazy"}
-                            unoptimized={isDataUrl}
-                          />
-                        </div>
-                      </div>
-                    </Link>
-                  );
-                })}
               </div>
-              
-              {/* Loading spinner - shows when more islands available; hidden on mobile (md and up only) */}
-              {visibleCount < islands.length && (
-                <div ref={observerTarget} className="mt-32 hidden md:flex justify-center py-12 min-h-[200px]">
-                  <div className="flex flex-col items-center gap-3">
-                    {/* Animated spinner matching ocean theme */}
-                    <div className="h-12 w-12 animate-spin rounded-full border-[3px] border-black border-t-transparent" />
-                    <div className="text-gray-600 text-sm font-medium">
-                      {t("Loading more islands...")}
-                    </div>
-                  </div>
-                </div>
-              )}
             </div>
-          </>
-        )}
+          ))}
+        </div>
+      )}
 
-        {/* Create Modal */}
-        {showCreateModal && (() => {
-          console.log("[Topic Islands] Rendering modal with formData.topic:", formData.topic);
-          return (
+      {islands.length === 0 ? (
+        <div
+          className="mx-auto flex max-w-lg flex-col items-center rounded-[28px] border bg-white px-6 py-12 text-center"
+          style={{
+            borderColor: "var(--lingo-border)",
+            boxShadow: "var(--lingo-shadow-card)",
+          }}
+        >
+          <div className="relative mb-5 h-36 w-full max-w-[260px]">
+            <Image
+              src="/capybara-islands/cottage.png"
+              alt=""
+              fill
+              className="object-contain"
+              sizes="260px"
+            />
+          </div>
+          <h2 className="lingo-display text-xl font-bold text-[var(--lingo-navy)]">
+            {t("Create your first island")}
+          </h2>
+          <p className="mt-2 max-w-sm text-sm text-[var(--lingo-text-muted)]">
+            {t("Pick a topic you care about and we'll build vocabulary and native example sentences around it.")}
+          </p>
+          <CreateIslandButton
+            onClick={() => setShowCreateModal(true)}
+            label={createLabel}
+            className="mt-6"
+          />
+        </div>
+      ) : (
+        <section>
+          <h2 className="lingo-display mb-4 text-xl font-bold text-[var(--lingo-navy)]">
+            {t("Your islands")}
+          </h2>
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {islands.map((island, index) => (
+              <IslandCard
+                key={island.id}
+                island={island}
+                topic={convertText(island.topic)}
+                priority={index < 3}
+              />
+            ))}
+          </div>
+        </section>
+      )}
+
+      {showCreateModal && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
-            <div className="w-full max-w-md max-h-[90vh] overflow-y-auto rounded-xl border border-gray-200 bg-white p-5 md:p-8 shadow-xl">
-              <h2 className="mb-6 text-2xl font-bold text-gray-900">
+            <div
+              className="w-full max-w-md max-h-[90vh] overflow-y-auto rounded-[24px] border bg-white p-5 md:p-8"
+              style={{
+                borderColor: "var(--lingo-border)",
+                boxShadow: "var(--lingo-shadow-card)",
+              }}
+            >
+              <h2 className="lingo-display mb-6 text-2xl font-bold text-[var(--lingo-navy)]">
                 {t("Create Topic Island")}
               </h2>
               <form onSubmit={handleCreate}>
                 <div className="mb-4">
-                  <label className="mb-2 block text-sm font-medium text-gray-900">
-                    Topic
+                  <label className="mb-2 block text-sm font-medium text-[var(--lingo-navy)]">
+                    {t("Topic")}
                   </label>
                   <input
                     type="text"
@@ -489,22 +492,24 @@ export default function TopicIslandsPage() {
                     onChange={(e) =>
                       setFormData({ ...formData, topic: e.target.value })
                     }
-                    placeholder="e.g., Cooking, Travel, Business"
-                    className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2 focus:border-gray-900 focus:outline-none"
+                    placeholder={t("e.g., Cooking, Travel, Business")}
+                    className="w-full rounded-xl border bg-white px-4 py-2.5 text-[var(--lingo-text)] focus:border-[var(--lingo-blue)] focus:outline-none"
+                    style={{ borderColor: "var(--lingo-border)" }}
                     required
                   />
                 </div>
 
                 <div className="mb-4">
-                  <label className="mb-2 block text-sm font-medium text-gray-900">
-                    Level
+                  <label className="mb-2 block text-sm font-medium text-[var(--lingo-navy)]">
+                    {t("Level")}
                   </label>
                   <select
                     value={formData.level}
                     onChange={(e) =>
                       setFormData({ ...formData, level: e.target.value })
                     }
-                    className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2 focus:border-gray-900 focus:outline-none"
+                    className="w-full rounded-xl border bg-white px-4 py-2.5 text-[var(--lingo-text)] focus:border-[var(--lingo-blue)] focus:outline-none"
+                    style={{ borderColor: "var(--lingo-border)" }}
                   >
                     {PROFILE_LEVEL_OPTIONS.map((opt) => (
                       <option key={opt.cefr} value={opt.cefr}>
@@ -515,8 +520,8 @@ export default function TopicIslandsPage() {
                 </div>
 
                 <div className="mb-4">
-                  <label className="mb-2 block text-sm font-medium text-gray-900">
-                    Word Count: {formData.wordTarget}
+                  <label className="mb-2 block text-sm font-medium text-[var(--lingo-navy)]">
+                    {t("Word Count:")} {formData.wordTarget}
                   </label>
                   <input
                     type="range"
@@ -531,18 +536,18 @@ export default function TopicIslandsPage() {
                     }
                     className="w-full"
                   />
-                  <div className="mt-1 flex justify-between text-xs text-gray-500">
+                  <div className="mt-1 flex justify-between text-xs text-[var(--lingo-text-muted)]">
                     <span>10</span>
                     <span>20</span>
                   </div>
                 </div>
 
                 <div className="mb-4">
-                  <label className="mb-2 block text-sm font-medium text-gray-900">
-                    Example sentences
+                  <label className="mb-2 block text-sm font-medium text-[var(--lingo-navy)]">
+                    {t("Example sentences")}
                   </label>
-                  <p className="mb-3 text-xs text-gray-600">
-                    Choose the tone for the example sentences on this island.
+                  <p className="mb-3 text-xs text-[var(--lingo-text-muted)]">
+                    {t("Choose the tone for the example sentences on this island.")}
                   </p>
                   <div className="grid gap-2 sm:grid-cols-2">
                     {SENTENCE_STYLE_OPTIONS.map((option) => {
@@ -557,21 +562,26 @@ export default function TopicIslandsPage() {
                               sentenceStyle: option.value,
                             }))
                           }
-                          className={`rounded-lg border px-3 py-3 text-left transition-colors ${
+                          className={`rounded-xl border px-3 py-3 text-left transition-colors ${
                             active
-                              ? "border-gray-900 bg-gray-900 text-white"
-                              : "border-gray-300 bg-white text-gray-900 hover:border-gray-400"
+                              ? "bg-[var(--lingo-navy)] text-white"
+                              : "bg-white text-[var(--lingo-navy)] hover:bg-[var(--lingo-sky-pale)]"
                           }`}
+                          style={{
+                            borderColor: active
+                              ? "var(--lingo-navy)"
+                              : "var(--lingo-border)",
+                          }}
                         >
                           <span className="block text-sm font-semibold">
-                            {option.label}
+                            {t(option.label)}
                           </span>
                           <span
                             className={`mt-1 block text-xs ${
-                              active ? "text-white/70" : "text-gray-500"
+                              active ? "text-white/70" : "text-[var(--lingo-text-muted)]"
                             }`}
                           >
-                            {option.description}
+                            {t(option.description)}
                           </span>
                         </button>
                       );
@@ -582,12 +592,11 @@ export default function TopicIslandsPage() {
                 <div className="mb-4">
                   <div className="mb-3 flex items-center justify-between">
                     <div>
-                      <label className="block text-sm font-medium text-gray-900">
-                        Include new grammar pattern teaching?
+                      <label className="block text-sm font-medium text-[var(--lingo-navy)]">
+                        {t("Include new grammar pattern teaching?")}
                       </label>
-                      <p className="mt-1 text-xs text-gray-600">
-                        Learn new native grammar structures that are useful for
-                        your desired topic.
+                      <p className="mt-1 text-xs text-[var(--lingo-text-muted)]">
+                        {t("Learn new native grammar structures that are useful for your desired topic.")}
                       </p>
                     </div>
                     <button
@@ -599,7 +608,9 @@ export default function TopicIslandsPage() {
                         }))
                       }
                       className={`relative inline-flex h-6 w-11 flex-shrink-0 items-center rounded-full transition-colors ${
-                        formData.wantsGrammar ? "bg-gray-900" : "bg-gray-300"
+                        formData.wantsGrammar
+                          ? "bg-[var(--lingo-navy)]"
+                          : "bg-gray-300"
                       }`}
                     >
                       <span
@@ -614,8 +625,8 @@ export default function TopicIslandsPage() {
 
                   {formData.wantsGrammar && (
                     <div className="mt-2">
-                      <p className="mb-2 text-sm font-medium text-gray-900">
-                        How many grammar patterns to teach?
+                      <p className="mb-2 text-sm font-medium text-[var(--lingo-navy)]">
+                        {t("How many grammar patterns to teach?")}
                       </p>
                       <div className="flex gap-2">
                         {[1, 2, 3].map((count) => (
@@ -628,11 +639,17 @@ export default function TopicIslandsPage() {
                                 grammarTarget: count,
                               }))
                             }
-                            className={`flex-1 rounded-lg border px-4 py-2 text-sm font-medium transition-colors ${
+                            className={`flex-1 rounded-xl border px-4 py-2 text-sm font-medium transition-colors ${
                               formData.grammarTarget === count
-                                ? "border-gray-900 bg-gray-900 text-white"
-                                : "border-gray-300 bg-white text-gray-900 hover:border-gray-900"
+                                ? "bg-[var(--lingo-navy)] text-white"
+                                : "bg-white text-[var(--lingo-navy)] hover:bg-[var(--lingo-sky-pale)]"
                             }`}
+                            style={{
+                              borderColor:
+                                formData.grammarTarget === count
+                                  ? "var(--lingo-navy)"
+                                  : "var(--lingo-border)",
+                            }}
                           >
                             {count}
                           </button>
@@ -642,17 +659,18 @@ export default function TopicIslandsPage() {
                   )}
                 </div>
 
-                {/* Review Vocabulary Section */}
                 {islands.length > 0 && (
-                  <div className="mb-6 rounded-lg border border-gray-200 bg-gray-50 p-4">
+                  <div
+                    className="mb-6 rounded-xl border bg-[var(--lingo-sky-pale)] p-4"
+                    style={{ borderColor: "var(--lingo-border)" }}
+                  >
                     <div className="mb-3 flex items-start justify-between">
                       <div className="flex-1">
-                        <label className="block text-sm font-medium text-gray-900">
-                          Include review vocabulary?
+                        <label className="block text-sm font-medium text-[var(--lingo-navy)]">
+                          {t("Include review vocabulary?")}
                         </label>
-                        <p className="mt-1 text-xs text-gray-600">
-                          Example sentences will use words from your other
-                          islands along with the new words for reinforcement.
+                        <p className="mt-1 text-xs text-[var(--lingo-text-muted)]">
+                          {t("Example sentences will use words from your other islands along with the new words for reinforcement.")}
                         </p>
                       </div>
                       <button
@@ -666,7 +684,7 @@ export default function TopicIslandsPage() {
                         }
                         className={`relative inline-flex h-6 w-11 flex-shrink-0 items-center rounded-full transition-colors ${
                           formData.includeReviewVocab
-                            ? "bg-gray-900"
+                            ? "bg-[var(--lingo-navy)]"
                             : "bg-gray-300"
                         }`}
                       >
@@ -692,13 +710,19 @@ export default function TopicIslandsPage() {
                                 selectedReviewIslands: [],
                               }))
                             }
-                            className={`flex-1 rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
+                            className={`flex-1 rounded-xl border px-3 py-2 text-sm font-medium transition-colors ${
                               formData.reviewVocabMode === "random"
-                                ? "border-gray-900 bg-gray-900 text-white"
-                                : "border-gray-300 bg-white text-gray-900 hover:border-gray-900"
+                                ? "bg-[var(--lingo-navy)] text-white"
+                                : "bg-white text-[var(--lingo-navy)]"
                             }`}
+                            style={{
+                              borderColor:
+                                formData.reviewVocabMode === "random"
+                                  ? "var(--lingo-navy)"
+                                  : "var(--lingo-border)",
+                            }}
                           >
-                            Random
+                            {t("Random")}
                           </button>
                           <button
                             type="button"
@@ -708,27 +732,33 @@ export default function TopicIslandsPage() {
                                 reviewVocabMode: "select",
                               }))
                             }
-                            className={`flex-1 rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
+                            className={`flex-1 rounded-xl border px-3 py-2 text-sm font-medium transition-colors ${
                               formData.reviewVocabMode === "select"
-                                ? "border-gray-900 bg-gray-900 text-white"
-                                : "border-gray-300 bg-white text-gray-900 hover:border-gray-900"
+                                ? "bg-[var(--lingo-navy)] text-white"
+                                : "bg-white text-[var(--lingo-navy)]"
                             }`}
+                            style={{
+                              borderColor:
+                                formData.reviewVocabMode === "select"
+                                  ? "var(--lingo-navy)"
+                                  : "var(--lingo-border)",
+                            }}
                           >
-                            Select Islands
+                            {t("Select Islands")}
                           </button>
                         </div>
 
                         {formData.reviewVocabMode === "select" && (
-                          <div className="max-h-40 space-y-2 overflow-y-auto rounded-md border border-gray-200 bg-white p-3">
+                          <div className="max-h-40 space-y-2 overflow-y-auto rounded-xl border bg-white p-3" style={{ borderColor: "var(--lingo-border)" }}>
                             {islands.length === 0 ? (
-                              <p className="text-xs text-gray-500">
-                                No other islands available
+                              <p className="text-xs text-[var(--lingo-text-muted)]">
+                                {t("No other islands available")}
                               </p>
                             ) : (
                               islands.map((island) => (
                                 <label
                                   key={island.id}
-                                  className="flex cursor-pointer items-center gap-2 rounded p-1.5 hover:bg-gray-50"
+                                  className="flex cursor-pointer items-center gap-2 rounded-lg p-1.5 hover:bg-[var(--lingo-sky-pale)]"
                                 >
                                   <input
                                     type="checkbox"
@@ -754,12 +784,12 @@ export default function TopicIslandsPage() {
                                         }));
                                       }
                                     }}
-                                    className="h-4 w-4 rounded border-gray-300 text-gray-900 focus:ring-2 focus:ring-gray-900"
+                                    className="h-4 w-4 rounded border-gray-300 text-[var(--lingo-navy)] focus:ring-2 focus:ring-[var(--lingo-blue)]"
                                   />
-                                  <span className="flex-1 text-sm text-gray-900">
+                                  <span className="flex-1 text-sm text-[var(--lingo-navy)]">
                                     {convertText(island.topic)}
                                   </span>
-                                  <span className="text-xs text-gray-500">
+                                  <span className="text-xs text-[var(--lingo-text-muted)]">
                                     {hskLabelForCefr(island.level)}
                                   </span>
                                 </label>
@@ -769,9 +799,8 @@ export default function TopicIslandsPage() {
                         )}
 
                         {formData.reviewVocabMode === "random" && (
-                          <p className="text-xs text-gray-600">
-                            Words will be randomly selected from all your other
-                            islands.
+                          <p className="text-xs text-[var(--lingo-text-muted)]">
+                            {t("Words will be randomly selected from all your other islands.")}
                           </p>
                         )}
                       </div>
@@ -779,36 +808,34 @@ export default function TopicIslandsPage() {
                   </div>
                 )}
 
-                <div className="flex gap-4">
+                <div className="flex gap-3">
                   <button
                     type="button"
                     onClick={() => setShowCreateModal(false)}
-                    className="flex-1 rounded-lg border border-gray-300 bg-white px-4 py-2 text-base text-gray-700 transition-colors hover:bg-gray-50"
+                    className="flex-1 rounded-2xl border bg-white px-4 py-2.5 text-sm font-semibold text-[var(--lingo-navy)] transition-colors hover:bg-[var(--lingo-sky-pale)]"
+                    style={{ borderColor: "var(--lingo-border)" }}
                     disabled={creating}
                   >
-                    Cancel
+                    {t("Cancel")}
                   </button>
                   <button
                     type="submit"
-                    className="flex-1 rounded-lg border border-gray-900 bg-white px-4 py-2 text-base font-medium text-gray-900 transition-colors hover:bg-gray-50"
+                    className="flex-1 rounded-2xl bg-[var(--lingo-navy)] px-4 py-2.5 text-sm font-bold text-white transition-colors hover:bg-[var(--lingo-navy-soft)] disabled:opacity-60"
                     disabled={creating}
                   >
-                    {creating ? "Creating..." : "Create"}
+                    {creating ? t("Creating...") : t("Create")}
                   </button>
                 </div>
               </form>
             </div>
           </div>
-          );
-        })()}
+      )}
 
-        {/* Upgrade Modal */}
-        <UpgradeModal 
-          open={showUpgradeModal} 
-          onClose={() => setShowUpgradeModal(false)}
-          feature="Create Topic Island (monthly limit reached)"
-        />
-      </div>
+      <UpgradeModal
+        open={showUpgradeModal}
+        onClose={() => setShowUpgradeModal(false)}
+        feature="Create Topic Island (monthly limit reached)"
+      />
     </div>
   );
 }

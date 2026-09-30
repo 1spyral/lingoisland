@@ -9,6 +9,7 @@ import {
 } from "@/lib/sentenceStyle";
 
 import { PROFILE_LEVEL_OPTIONS } from "@/lib/levelBands";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 const LEVELS = PROFILE_LEVEL_OPTIONS.map((o) => ({
   code: o.cefr,
@@ -18,6 +19,7 @@ const LEVELS = PROFILE_LEVEL_OPTIONS.map((o) => ({
 
 export default function JourneyCreatePage() {
   const router = useRouter();
+  const { t } = useLanguage();
   const searchParams = useSearchParams();
   const topicFromQuery = searchParams.get("topic")?.trim() ?? "";
   const [topic, setTopic] = useState(topicFromQuery);
@@ -29,7 +31,7 @@ export default function JourneyCreatePage() {
   const handleCreate = async () => {
     const trimmed = topic.trim();
     if (!trimmed) {
-      setError("Please enter a topic for your journey.");
+      setError(t("Please enter a topic for your journey."));
       return;
     }
     setError(null);
@@ -50,16 +52,16 @@ export default function JourneyCreatePage() {
       });
       const data = await res.json();
       if (!res.ok) {
-        setError(data?.error ?? "Failed to create journey. Please try again.");
+        setError(data?.error ?? t("Failed to create journey. Please try again."));
         return;
       }
       if (data.journeyId) {
         router.push(`/app/journey`);
       } else {
-        setError("Unexpected response from server.");
+        setError(t("Unexpected response from server."));
       }
     } catch {
-      setError("Something went wrong. Please try again.");
+      setError(t("Something went wrong. Please try again."));
     } finally {
       setLoading(false);
     }
@@ -75,7 +77,7 @@ export default function JourneyCreatePage() {
           className="flex items-center gap-1.5 text-sm font-medium text-slate-500 transition-colors hover:text-slate-800"
         >
           <ArrowLeft className="h-4 w-4" />
-          Back
+          {t("Back")}
         </button>
       </div>
 
@@ -83,15 +85,15 @@ export default function JourneyCreatePage() {
       <div className="mx-auto w-full max-w-lg px-6 py-14">
         {/* Heading */}
         <p className="mb-1 text-xs font-black uppercase tracking-widest text-[#8aa8b5]">
-          New Journey
+          {t("New Journey")}
         </p>
         <h1 className="text-3xl font-black leading-tight text-[#1a2332]">
-          What do you want
+          {t("What do you want")}
           <br />
-          to <em className="not-italic text-[#4a9fc4]">learn about?</em>
+          <em className="not-italic text-[#4a9fc4]">{t("to learn about?")}</em>
         </h1>
         <p className="mt-2 text-sm text-[#7a9aaa]">
-          Pick a topic and your level — we'll build a custom learning path in seconds.
+          {t("Pick a topic and your level — we'll build a custom learning path in seconds.")}
         </p>
 
         {/* Form */}
@@ -102,7 +104,7 @@ export default function JourneyCreatePage() {
               htmlFor="topic"
               className="mb-2 block text-xs font-black uppercase tracking-widest text-[#1a2332]"
             >
-              Topic
+              {t("Topic")}
             </label>
             <input
               id="topic"
@@ -110,7 +112,7 @@ export default function JourneyCreatePage() {
               value={topic}
               onChange={(e) => setTopic(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && !loading && handleCreate()}
-              placeholder="e.g. Coffee shop conversations, K-pop, Business emails…"
+              placeholder={t("e.g. Coffee shop conversations, K-pop, Business emails…")}
               disabled={loading}
               className="w-full rounded-xl border border-[#c8dce6] bg-white px-4 py-3 text-sm font-medium text-[#1a2332] placeholder-[#b5cdd8] outline-none transition focus:border-[#4a9fc4] focus:ring-2 focus:ring-[#4a9fc4]/20 disabled:opacity-60"
             />
@@ -119,7 +121,7 @@ export default function JourneyCreatePage() {
           {/* Level */}
           <div>
             <label className="mb-3 block text-xs font-black uppercase tracking-widest text-[#1a2332]">
-              Your Mandarin Level
+              {t("Your Mandarin Level")}
             </label>
             <div className="flex flex-wrap gap-2">
               {LEVELS.map((l) => {
@@ -161,7 +163,7 @@ export default function JourneyCreatePage() {
           {/* Sentence style */}
           <div>
             <label className="mb-3 block text-xs font-black uppercase tracking-widest text-[#1a2332]">
-              Example Sentences
+              {t("Example Sentences")}
             </label>
             <div className="grid gap-2 sm:grid-cols-2">
               {SENTENCE_STYLE_OPTIONS.map((option) => {
@@ -187,14 +189,14 @@ export default function JourneyCreatePage() {
                           }
                     }
                   >
-                    <span className="text-sm font-black">{option.label}</span>
+                    <span className="text-sm font-black">{t(option.label)}</span>
                     <span
                       className="mt-1 text-[10px] font-medium leading-snug"
                       style={{
                         color: active ? "rgba(255,255,255,0.65)" : "#8aa8b5",
                       }}
                     >
-                      {option.description}
+                      {t(option.description)}
                     </span>
                   </button>
                 );
@@ -220,16 +222,16 @@ export default function JourneyCreatePage() {
             {loading ? (
               <>
                 <Loader2 className="h-4 w-4 animate-spin" />
-                Building your journey…
+                {t("Building your journey…")}
               </>
             ) : (
-              "Create journey →"
+              t("Create journey →")
             )}
           </button>
 
           {loading && (
             <p className="text-center text-xs text-[#8aa8b5]">
-              We're generating your personalized learning path. This takes about 10 seconds.
+              {t("We're generating your personalized learning path. This takes about 10 seconds.")}
             </p>
           )}
         </div>

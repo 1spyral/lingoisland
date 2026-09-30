@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Lock, Search, X } from "lucide-react";
 import { useCharacterSet } from "@/contexts/CharacterSetContext";
+import { useLanguage } from "@/contexts/LanguageContext";
 import { createClient } from "@/lib/supabase/browser";
 import { useIsHskAppPreview } from "@/components/hsk/hskFlashcardsPaths";
 import { HSK_APP_LABELS } from "@/lib/hsk-app-labels";
@@ -54,6 +55,7 @@ const LEGEND: { status: WordStatus; label: string; dot: string }[] = [
 
 export default function HskWordsPage() {
   const { convertText } = useCharacterSet();
+  const { t } = useLanguage();
   const isHskApp = useIsHskAppPreview();
   const [level, setLevel] = useState(1);
   const [targetLevel, setTargetLevel] = useState<number | null>(null);
@@ -155,10 +157,16 @@ export default function HskWordsPage() {
   const progressPct = progress.total > 0 ? (progress.mastered / progress.total) * 100 : 0;
   const hasMore = words.length < total;
 
-  const pageTitle = isHskApp ? HSK_APP_LABELS.vocabulary.title : "HSK Word Bank";
-  const pageDescription = isHskApp
-    ? HSK_APP_LABELS.vocabulary.description
-    : "Browse every HSK word by level and track what you've mastered.";
+  const pageTitle = convertText(
+    t(isHskApp ? HSK_APP_LABELS.vocabulary.title : "HSK Word Bank"),
+  );
+  const pageDescription = convertText(
+    t(
+      isHskApp
+        ? HSK_APP_LABELS.vocabulary.description
+        : "Browse every HSK word by level and track what you've mastered.",
+    ),
+  );
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-8 md:px-8">
@@ -194,8 +202,8 @@ export default function HskWordsPage() {
       <div className="mb-2 flex items-center justify-between text-xs text-gray-500">
         <span>
           {progress.mastered} / {progress.total}{" "}
-          {levels.find((item) => item.level === level)?.label ?? `HSK ${level}`} words
-          mastered
+          {levels.find((item) => item.level === level)?.label ?? `HSK ${level}`}{" "}
+          {convertText(t("words mastered"))}
         </span>
         <span>{Math.round(progressPct)}%</span>
       </div>
@@ -210,7 +218,7 @@ export default function HskWordsPage() {
         {LEGEND.map((l) => (
           <div key={l.status} className="flex items-center gap-1.5 text-xs text-gray-500">
             <span className={`h-2.5 w-2.5 rounded-full ${l.dot}`} />
-            {l.label}
+            {convertText(t(l.label))}
           </div>
         ))}
       </div>
@@ -220,7 +228,7 @@ export default function HskWordsPage() {
         <input
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search hanzi, pinyin, or English…"
+          placeholder={convertText(t("Search hanzi, pinyin, or English…"))}
           className="w-full rounded-xl border border-gray-200 bg-white py-2.5 pl-10 pr-4 text-sm text-gray-900 placeholder:text-gray-400 focus:border-gray-400 focus:outline-none"
         />
       </div>
@@ -232,7 +240,7 @@ export default function HskWordsPage() {
           ))}
         </div>
       ) : words.length === 0 ? (
-        <p className="py-12 text-center text-sm text-gray-400">No words match your search.</p>
+        <p className="py-12 text-center text-sm text-gray-400">{convertText(t("No words match your search."))}</p>
       ) : (
         <>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
@@ -260,7 +268,9 @@ export default function HskWordsPage() {
                 disabled={loadingMore}
                 className="rounded-lg border border-gray-300 bg-white px-6 py-2.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 disabled:opacity-60"
               >
-                {loadingMore ? "Loading…" : `Load more (${words.length} of ${total})`}
+                {loadingMore
+                  ? convertText(t("Loading…"))
+                  : `${convertText(t("Load more"))} (${words.length} ${convertText(t("of"))} ${total})`}
               </button>
             </div>
           )}
@@ -276,6 +286,7 @@ export default function HskWordsPage() {
 
 function WordDetailModal({ word, onClose }: { word: HskWord; onClose: () => void }) {
   const { convertText } = useCharacterSet();
+  const { t } = useLanguage();
   const [adding, setAdding] = useState(false);
   const [added, setAdded] = useState(word.status !== "not_introduced");
 
@@ -301,7 +312,7 @@ function WordDetailModal({ word, onClose }: { word: HskWord; onClose: () => void
         <button
           onClick={onClose}
           className="absolute right-4 top-4 rounded-full p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
-          aria-label="Close"
+          aria-label={convertText(t("Close"))}
         >
           <X className="h-5 w-5" />
         </button>
@@ -316,7 +327,7 @@ function WordDetailModal({ word, onClose }: { word: HskWord; onClose: () => void
           </div>
         )}
         <div className="mb-4 text-base font-semibold text-gray-900">
-          {word.english || "Translation coming soon"}
+          {word.english || convertText(t("Translation coming soon"))}
         </div>
 
         {word.example_sentence && (
@@ -333,7 +344,7 @@ function WordDetailModal({ word, onClose }: { word: HskWord; onClose: () => void
           disabled={adding || added}
           className="w-full rounded-lg bg-gray-900 px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-gray-800 disabled:opacity-60"
         >
-          {added ? "In your flashcards" : adding ? "Adding…" : "Add to flashcards"}
+          {convertText(t(added ? "In your flashcards" : adding ? "Adding…" : "Add to flashcards"))}
         </button>
       </div>
     </div>

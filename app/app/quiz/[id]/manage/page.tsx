@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
 import SpeakerButton from "@/components/app/SpeakerButton";
+import { useLanguage } from "@/contexts/LanguageContext";
+import AppPageLoading from "@/components/app/AppPageLoading";
 
 interface QuizIsland {
   id: string;
@@ -26,6 +28,7 @@ export default function ManageCardsPage() {
   const router = useRouter();
   const params = useParams();
   const quizIslandId = params.id as string;
+  const { t } = useLanguage();
 
   const [quizIsland, setQuizIsland] = useState<QuizIsland | null>(null);
   const [cards, setCards] = useState<QuizCard[]>([]);
@@ -116,39 +119,13 @@ export default function ManageCardsPage() {
   };
 
   if (loading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-gray-50">
-        <div className="flex items-center gap-3 text-gray-600">
-          <svg
-            className="h-5 w-5 animate-spin text-gray-400"
-            xmlns="http://www.w3.org/2000/svg"
-            fill="none"
-            viewBox="0 0 24 24"
-          >
-            <circle
-              className="opacity-25"
-              cx="12"
-              cy="12"
-              r="10"
-              stroke="currentColor"
-              strokeWidth="4"
-            />
-            <path
-              className="opacity-75"
-              fill="currentColor"
-              d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
-            />
-          </svg>
-          <span>Loading...</span>
-        </div>
-      </div>
-    );
+    return <AppPageLoading />;
   }
 
   if (!quizIsland) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-gray-50">
-        <div className="text-gray-600">Quiz island not found</div>
+        <div className="text-gray-600">{t("Quiz island not found")}</div>
       </div>
     );
   }
@@ -171,13 +148,13 @@ export default function ManageCardsPage() {
               href={`/app/quiz/${quizIslandId}`}
               className="mb-4 inline-block text-sm font-medium text-gray-600 transition-colors hover:text-gray-900"
             >
-              ← Back to Quiz Island
+              ← {t("Back to Quiz Island")}
             </Link>
             <h1 className="mb-2 text-4xl font-bold tracking-tight text-gray-900">
               {quizIsland.name}
             </h1>
             <p className="text-sm text-gray-600">
-              Manage cards • {quizIsland.card_count} total
+              {t("Manage cards")} • {quizIsland.card_count} {t("total")}
             </p>
           </div>
         </div>
@@ -192,7 +169,7 @@ export default function ManageCardsPage() {
                 : "border-gray-200 bg-white text-gray-700 hover:bg-gray-50"
             }`}
           >
-            All
+            {t("All")}
           </button>
           <button
             onClick={() => setDirectionFilter("ZH_EN")}
@@ -202,7 +179,7 @@ export default function ManageCardsPage() {
                 : "border-gray-200 bg-white text-gray-700 hover:bg-gray-50"
             }`}
           >
-            Chinese → English
+            {t("Chinese → English")}
           </button>
           <button
             onClick={() => setDirectionFilter("EN_ZH")}
@@ -212,7 +189,7 @@ export default function ManageCardsPage() {
                 : "border-gray-200 bg-white text-gray-700 hover:bg-gray-50"
             }`}
           >
-            English → Chinese
+            {t("English → Chinese")}
           </button>
         </div>
 
@@ -221,8 +198,8 @@ export default function ManageCardsPage() {
           <div className="rounded-xl border border-gray-200 bg-white p-12 text-center shadow-sm">
             <p className="text-gray-600">
               {directionFilter === "all"
-                ? "No cards in this quiz island yet."
-                : `No ${directionLabel[directionFilter as "ZH_EN" | "EN_ZH"]} cards.`}
+                ? t("No cards in this quiz island yet.")
+                : t(`No ${directionLabel[directionFilter as "ZH_EN" | "EN_ZH"]} cards.`)}
             </p>
           </div>
         ) : (
@@ -234,7 +211,7 @@ export default function ManageCardsPage() {
               >
                 <div className="flex-1">
                   <div className="mb-1 text-sm font-semibold text-gray-900">
-                    {directionLabel[card.direction]}
+                    {t(directionLabel[card.direction])}
                   </div>
                   <div className="flex items-center gap-2 text-base text-gray-900">
                     <span className="font-medium">{card.front}</span>
@@ -255,9 +232,9 @@ export default function ManageCardsPage() {
                   onClick={() => handleDeleteClick(card)}
                   disabled={deletingCardId === card.id}
                   className="ml-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm font-medium text-red-700 transition-colors hover:bg-red-100 disabled:opacity-50"
-                  title="Delete card"
+                  title={t("Delete card")}
                 >
-                  {deletingCardId === card.id ? "Deleting..." : "Delete"}
+                  {deletingCardId === card.id ? t("Deleting...") : t("Delete")}
                 </button>
               </div>
             ))}
@@ -269,11 +246,11 @@ export default function ManageCardsPage() {
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
             <div className="w-full max-w-md rounded-xl border border-gray-200 bg-white p-6 shadow-xl">
               <h3 className="mb-4 text-xl font-semibold text-gray-900">
-                Delete this card?
+                {t("Delete this card?")}
               </h3>
               <div className="mb-6 rounded-lg border border-gray-200 bg-gray-50 p-4">
                 <div className="mb-2 text-sm font-semibold text-gray-900">
-                  {directionLabel[cardToDelete.direction]}
+                  {t(directionLabel[cardToDelete.direction])}
                 </div>
                 <div className="flex items-center gap-2 text-base text-gray-900">
                   <span className="font-medium">{cardToDelete.front}</span>
@@ -300,14 +277,14 @@ export default function ManageCardsPage() {
                   }}
                   className="rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50"
                 >
-                  Cancel
+                  {t("Cancel")}
                 </button>
                 <button
                   onClick={handleDeleteConfirm}
                   disabled={deletingCardId !== null}
                   className="rounded-lg border border-red-600 bg-red-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-red-700 disabled:opacity-50"
                 >
-                  {deletingCardId !== null ? "Deleting..." : "Delete"}
+                  {deletingCardId !== null ? t("Deleting...") : t("Delete")}
                 </button>
               </div>
             </div>

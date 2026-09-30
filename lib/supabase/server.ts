@@ -1,3 +1,4 @@
+import { cache } from 'react'
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 
@@ -5,8 +6,10 @@ import { cookies } from 'next/headers'
  * Server-side Supabase client for App Router
  * Reads and writes cookies to maintain session
  * Use this in Server Components, Route Handlers, and Server Actions
+ *
+ * Cached per request so the layout, entitlements, and Home loader share one client.
  */
-export async function createClient() {
+export const createClient = cache(async function createClient() {
   const cookieStore = await cookies()
 
   return createServerClient(
@@ -38,5 +41,15 @@ export async function createClient() {
       },
     }
   )
-}
+})
+
+/** One auth check per request, shared by the app layout and Home data loader. */
+export const getAuthenticatedUser = cache(async function getAuthenticatedUser() {
+  const supabase = await createClient()
+  const {
+    data: { user },
+    error,
+  } = await supabase.auth.getUser()
+  return { user, error }
+})
 

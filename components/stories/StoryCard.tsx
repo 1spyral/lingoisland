@@ -1,7 +1,11 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
+import { ChevronRight } from "lucide-react";
 import { useCharacterSet } from "@/contexts/CharacterSetContext";
+import { useLanguage } from "@/contexts/LanguageContext";
+import { capybaraStorySrc } from "@/lib/capybaraStories";
 import { hskLabelForCefr } from "@/lib/levelBands";
 
 export type StorySummary = {
@@ -21,45 +25,60 @@ function formatDate(value: string | null) {
   return parsed.toLocaleDateString();
 }
 
+function getTimeLabel(storyText: string | null | undefined, minLabel: string) {
+  if (!storyText) return `2-3 ${minLabel}`;
+  const minutes = Math.min(4, Math.max(2, Math.round(storyText.length / 350)));
+  return `${minutes}-${minutes + 1} ${minLabel}`;
+}
+
 export default function StoryCard({ story }: { story: StorySummary }) {
   const { convertText } = useCharacterSet();
-  const label = story.kind === "daily" ? "Daily" : "Custom";
-  const badgeTone =
-    story.kind === "daily"
-      ? "border-blue-200 bg-blue-50 text-blue-700"
-      : "border-gray-200 bg-gray-100 text-gray-700";
+  const { t } = useLanguage();
   const dateLabel = formatDate(story.date || story.created_at);
+  const thumb = capybaraStorySrc(story.id);
 
   return (
     <Link
       href={`/app/story/${story.id}`}
-      className="block rounded-xl border border-gray-200 bg-white p-5 shadow-sm transition-all hover:border-gray-900 hover:bg-gray-50 hover:shadow-md"
+      className="group block rounded-[20px] border bg-white p-3 transition-[transform,box-shadow] duration-200 hover:-translate-y-0.5 hover:[box-shadow:var(--lingo-shadow-card)] motion-reduce:transition-none motion-reduce:hover:translate-y-0"
+      style={{
+        borderColor: "var(--lingo-border)",
+        boxShadow: "var(--lingo-shadow-sm)",
+      }}
     >
-      <div className="mb-3 flex items-center justify-between">
-        <div className="text-sm font-medium text-gray-600">
-          {hskLabelForCefr(story.level)} {dateLabel ? `• ${dateLabel}` : ""}
+      <div className="relative h-[110px] overflow-hidden rounded-xl">
+        <div className="relative h-full w-full transition-transform duration-300 ease-out group-hover:scale-[1.02] motion-reduce:transition-none motion-reduce:group-hover:scale-100">
+          <Image
+            src={thumb}
+            alt=""
+            fill
+            className="object-cover object-center"
+            sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
+          />
         </div>
-        <span
-          className={`rounded-full border px-2.5 py-1 text-xs font-semibold uppercase tracking-wide ${badgeTone}`}
-        >
-          {label}
-        </span>
       </div>
-      <h3 className="mb-2 text-lg font-semibold text-gray-900">
-        {convertText(story.title)}
-      </h3>
-      <p
-        className="text-sm text-gray-600"
-        style={{
-          display: "-webkit-box",
-          WebkitLineClamp: 3,
-          WebkitBoxOrient: "vertical",
-          overflow: "hidden",
-        }}
-      >
-        {convertText(story.story_zh)}
-      </p>
+      <div className="px-0.5 pt-3">
+        <div className="flex items-start justify-between gap-2">
+          <h3 className="line-clamp-2 text-[15px] font-semibold leading-snug text-[var(--lingo-navy)]">
+            {convertText(story.title)}
+          </h3>
+          <ChevronRight
+            size={16}
+            className="mt-0.5 shrink-0 text-[var(--lingo-blue)] transition-transform duration-200 group-hover:translate-x-0.5 motion-reduce:transition-none"
+            aria-hidden
+          />
+        </div>
+        {story.story_zh ? (
+          <p className="mt-1 line-clamp-1 text-sm text-[var(--lingo-text-muted)]">
+            {convertText(story.story_zh)}
+          </p>
+        ) : null}
+        <p className="mt-1.5 truncate text-[12px] text-[var(--lingo-text-muted)]">
+          {[hskLabelForCefr(story.level), dateLabel, getTimeLabel(story.story_zh, t("min"))]
+            .filter(Boolean)
+            .join(" · ")}
+        </p>
+      </div>
     </Link>
   );
 }
-

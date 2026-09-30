@@ -2,37 +2,17 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
-import { BookOpen, Check, Clock, Lock, Map, Mic, Plus } from "lucide-react";
-import { useElementWidth } from "@/hooks/useElementWidth";
-import { BrowsePreviousJourneys } from "@/components/app/BrowsePreviousJourneys";
-import type { CompletedJourney } from "@/types/journey";
+import { Clock, Plus } from "lucide-react";
 import { HSK_APP_LABELS } from "@/lib/hsk-app-labels";
 import { useSidebar } from "@/components/app/AppLayoutClient";
 import HskCurriculumSection from "@/components/hsk/HskCurriculumSection";
-
-const BASE_W = 380;
-const MAP_TOP_PADDING = 64;
-const MAP_BOTTOM_PADDING = 92;
-const MAP_H = 820 + MAP_TOP_PADDING + MAP_BOTTOM_PADDING;
-const MAX_W = 600;
-// 11-node order: I1, T1, I2, S1, T2, I3, T3, I4, T4, I5, S2
-const BASE_NODES = [
-  { bx: 100, cy: 55 },
-  { bx: 220, cy: 127 },
-  { bx: 280, cy: 199 },
-  { bx: 190, cy: 271 },
-  { bx: 90, cy: 343 },
-  { bx: 190, cy: 415 },
-  { bx: 280, cy: 487 },
-  { bx: 190, cy: 559 },
-  { bx: 90, cy: 631 },
-  { bx: 190, cy: 703 },
-  { bx: 270, cy: 775 },
-] as const;
-const MAP_NODES = BASE_NODES.map((node) => ({
-  bx: node.bx,
-  cy: node.cy + MAP_TOP_PADDING,
-}));
+import AppPageLoading from "@/components/app/AppPageLoading";
+import {
+  JourneyDashboard,
+  type JourneyPathNode,
+} from "@/components/journey/JourneyDashboard";
+import { toJourneyUserError } from "@/components/journey/journeyUserError";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 type ApiNode = {
   id: string;
@@ -49,917 +29,6 @@ type ApiNode = {
   completed_at?: string | null;
 };
 
-type PathNode = {
-  id: string;
-  type: "island" | "story" | "tone_practice";
-  position: number;
-  islandOrder: number;
-  name: string;
-  nameZh?: string;
-  hint?: string;
-  wordCount: number;
-  islandId?: string;
-  storyId?: string;
-  pronunciationSessionId?: string;
-  completed: boolean;
-  current: boolean;
-  paywalled: boolean;
-};
-
-function buildPath(nodes: readonly { cx: number; cy: number }[]) {
-  return nodes.reduce((path, node, index) => {
-    if (index === 0) {
-      return `M ${node.cx} ${node.cy}`;
-    }
-    const previous = nodes[index - 1];
-    const dy = node.cy - previous.cy;
-    return `${path} C ${previous.cx} ${previous.cy + dy * 0.45}, ${node.cx} ${
-      node.cy - dy * 0.45
-    }, ${node.cx} ${node.cy}`;
-  }, "");
-}
-
-function Pill({
-  children,
-  light = false,
-  scale = 1,
-}: {
-  children: string;
-  light?: boolean;
-  scale?: number;
-}) {
-  return (
-    <span
-      style={{
-        display: "inline-flex",
-        alignItems: "center",
-        borderRadius: 9999,
-        padding: `${Math.round(2 * scale)}px ${Math.round(6 * scale)}px`,
-        fontSize: Math.round(9 * scale),
-        fontWeight: 700,
-        color: light ? "#9ca3af" : "#e5e7eb",
-        background: light ? "#f9fafb" : "rgba(255,255,255,0.12)",
-        border: `1px solid ${light ? "#f3f4f6" : "rgba(255,255,255,0.08)"}`,
-        whiteSpace: "nowrap",
-      }}
-    >
-      {children}
-    </span>
-  );
-}
-
-function StoryNode({
-  size,
-  done,
-  current = false,
-}: {
-  size: number;
-  done: boolean;
-  current?: boolean;
-}) {
-  return (
-    <div
-      style={{
-        width: current ? size + 10 : size,
-        height: current ? size + 10 : size,
-        borderRadius: Math.round(size * 0.3),
-        background: current ? "#fff7ed" : "white",
-        border: `2px solid ${current ? "#f59e0b" : done ? "#fbbf24" : "#fde68a"}`,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        opacity: 1,
-        boxShadow: current
-          ? "0 0 0 6px rgba(255,247,237,0.95), 0 10px 28px rgba(245,158,11,0.28)"
-          : "none",
-        transform: current ? "scale(1.06)" : "none",
-        transition: "transform 180ms ease, box-shadow 180ms ease",
-      }}
-    >
-      <BookOpen
-        size={Math.max(15, Math.round(size * 0.38))}
-        color={current ? "#ea580c" : done ? "#f59e0b" : "#fcd34d"}
-      />
-    </div>
-  );
-}
-
-function TonePracticeNode({
-  size,
-  done,
-  current = false,
-}: {
-  size: number;
-  done: boolean;
-  current?: boolean;
-}) {
-  return (
-    <div
-      style={{
-        width: current ? size + 10 : size,
-        height: current ? size + 10 : size,
-        borderRadius: Math.round(size * 0.3),
-        background: current ? "#f0f9ff" : "white",
-        border: `2px solid ${current ? "#0ea5e9" : done ? "#38bdf8" : "#bae6fd"}`,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        opacity: 1,
-        boxShadow: current
-          ? "0 0 0 6px rgba(240,249,255,0.95), 0 10px 28px rgba(14,165,233,0.28)"
-          : "none",
-        transform: current ? "scale(1.06)" : "none",
-        transition: "transform 180ms ease, box-shadow 180ms ease",
-      }}
-    >
-      <Mic
-        size={Math.max(15, Math.round(size * 0.38))}
-        color={current ? "#0284c7" : done ? "#0ea5e9" : "#7dd3fc"}
-      />
-    </div>
-  );
-}
-
-function DoneNode({ r }: { r: number }) {
-  return (
-    <div
-      style={{
-        width: r * 2,
-        height: r * 2,
-        borderRadius: 9999,
-        background: "#14b8a6",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        color: "white",
-      }}
-    >
-      <Check size={Math.max(16, Math.round(r * 0.75))} strokeWidth={3} />
-    </div>
-  );
-}
-
-function CurrentNode({
-  r,
-  num,
-  fontSize,
-}: {
-  r: number;
-  num: number;
-  fontSize: number;
-}) {
-  return (
-    <div
-      style={{
-        width: r * 2,
-        height: r * 2,
-        borderRadius: 9999,
-        background: "#111827",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        color: "white",
-        fontSize,
-        fontWeight: 900,
-        boxShadow: "0 0 0 6px #f3f4f6, 0 4px 20px rgba(0,0,0,0.25)",
-      }}
-    >
-      {num}
-    </div>
-  );
-}
-
-function LockedNode({
-  r,
-  num,
-  fontSize,
-}: {
-  r: number;
-  num: number;
-  fontSize: number;
-}) {
-  return (
-    <div
-      style={{
-        width: r * 2,
-        height: r * 2,
-        borderRadius: 9999,
-        border: "2px solid #e5e7eb",
-        background: "white",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        color: "#9ca3af",
-        fontSize,
-        fontWeight: 900,
-      }}
-    >
-      {num}
-    </div>
-  );
-}
-
-function LabelCard({
-  node,
-  kind,
-  isDesktop,
-  onContinue,
-  scale = 1,
-}: {
-  node: PathNode;
-  kind: "island" | "story" | "tone_practice";
-  isDesktop: boolean;
-  onContinue: (node: PathNode) => void;
-  scale?: number;
-}) {
-  const cardPadY = Math.round((isDesktop ? 12 : 10) * scale);
-  const cardPadX = Math.round((isDesktop ? 14 : 12) * scale);
-  const storyPadY = Math.round(8 * scale);
-  const storyPadX = Math.round(10 * scale);
-  const titleSize = Math.round((isDesktop ? 14 : 12) * scale);
-  const bodySize = Math.round((isDesktop ? 10 : 9) * scale);
-  const eyebrowSize = Math.round(9 * scale);
-  const compactTitleSize = Math.round(11 * scale);
-  const isStory = kind === "story";
-  const isTonePractice = kind === "tone_practice";
-
-  if (isTonePractice && node.current) {
-    return (
-      <div
-        style={{
-          background: "linear-gradient(135deg, #f0f9ff 0%, #eff6ff 100%)",
-          border: "1px solid #7dd3fc",
-          borderRadius: 14,
-          padding: `${Math.round((isDesktop ? 10 : 9) * scale)}px ${Math.round((isDesktop ? 12 : 10) * scale)}px`,
-          boxShadow: "0 10px 28px rgba(14,165,233,0.18)",
-        }}
-      >
-        <p
-          style={{
-            fontSize: eyebrowSize,
-            fontWeight: 900,
-            color: "#0284c7",
-            marginBottom: 2,
-            textTransform: "uppercase",
-            letterSpacing: "0.1em",
-          }}
-        >
-          Pronunciation checkpoint
-        </p>
-        <p style={{ fontSize: titleSize, fontWeight: 900, color: "#0c4a6e", lineHeight: 1.3 }}>
-          {node.name}
-        </p>
-        <p style={{ fontSize: bodySize, color: "#0369a1", marginTop: 4, fontWeight: 700 }}>
-          Practice now →
-        </p>
-      </div>
-    );
-  }
-
-  if (isTonePractice) {
-    return (
-      <div
-        style={{
-          background: node.completed ? "#f0f9ff" : "rgba(240,249,255,0.9)",
-          border: `1px solid ${node.completed ? "#bae6fd" : "#e0f2fe"}`,
-          borderRadius: 12,
-          padding: `${storyPadY}px ${storyPadX}px`,
-          opacity: node.completed ? 1 : 0.8,
-          boxShadow: "0 1px 3px rgba(0,0,0,0.04)",
-        }}
-      >
-        <p
-          style={{
-            fontSize: eyebrowSize,
-            fontWeight: 900,
-            color: "#0ea5e9",
-            marginBottom: 2,
-            textTransform: "uppercase",
-            letterSpacing: "0.1em",
-          }}
-        >
-          Practice
-        </p>
-        <p style={{ fontSize: compactTitleSize, fontWeight: 700, color: "#374151", lineHeight: 1.3 }}>
-          {node.name}
-        </p>
-        {isDesktop && (
-          <p style={{ fontSize: bodySize, color: "#0284c7", marginTop: 3 }}>
-            {node.completed ? "Practice again →" : "Pronunciation checkpoint"}
-          </p>
-        )}
-      </div>
-    );
-  }
-
-  if (isStory && node.current) {
-    return (
-      <div
-        style={{
-          background: "linear-gradient(135deg, #fff7ed 0%, #fffbeb 100%)",
-          border: "1px solid #fdba74",
-          borderRadius: 14,
-          padding: `${Math.round((isDesktop ? 10 : 9) * scale)}px ${Math.round((isDesktop ? 12 : 10) * scale)}px`,
-          boxShadow: "0 10px 28px rgba(245,158,11,0.18)",
-        }}
-      >
-        <p
-          style={{
-            fontSize: eyebrowSize,
-            fontWeight: 900,
-            color: "#ea580c",
-            marginBottom: 2,
-            textTransform: "uppercase",
-            letterSpacing: "0.1em",
-          }}
-        >
-          Story checkpoint
-        </p>
-        <p style={{ fontSize: titleSize, fontWeight: 900, color: "#7c2d12", lineHeight: 1.3 }}>
-          {node.name}
-        </p>
-        <p style={{ fontSize: bodySize, color: "#c2410c", marginTop: 4, fontWeight: 700 }}>
-          Open now →
-        </p>
-      </div>
-    );
-  }
-
-  if (isStory) {
-    return (
-      <div
-        style={{
-          background: node.completed ? "#fffbeb" : "rgba(255,251,235,0.9)",
-          border: `1px solid ${node.completed ? "#fde68a" : "#fef3c7"}`,
-          borderRadius: 12,
-          padding: `${storyPadY}px ${storyPadX}px`,
-          opacity: node.completed ? 1 : 0.8,
-          boxShadow: "0 1px 3px rgba(0,0,0,0.04)",
-        }}
-      >
-        <p
-          style={{
-            fontSize: eyebrowSize,
-            fontWeight: 900,
-            color: "#f59e0b",
-            marginBottom: 2,
-            textTransform: "uppercase",
-            letterSpacing: "0.1em",
-          }}
-        >
-          Story
-        </p>
-        <p style={{ fontSize: compactTitleSize, fontWeight: 700, color: "#374151", lineHeight: 1.3 }}>
-          {node.name}
-        </p>
-        {isDesktop && (
-          <p style={{ fontSize: bodySize, color: "#d97706", marginTop: 3 }}>
-            Vocab checkpoint
-          </p>
-        )}
-      </div>
-    );
-  }
-
-  if (node.current) {
-    return (
-      <div
-        style={{
-          background: "#111827",
-          borderRadius: 14,
-          padding: `${cardPadY}px ${cardPadX}px`,
-          boxShadow: "0 6px 24px rgba(0,0,0,0.22)",
-        }}
-      >
-        <p
-          style={{
-            fontSize: eyebrowSize,
-            fontWeight: 900,
-            color: "#9ca3af",
-            marginBottom: 2,
-            textTransform: "uppercase",
-            letterSpacing: "0.1em",
-          }}
-        >
-          Up next
-        </p>
-        <p
-          style={{
-            fontSize: titleSize,
-            fontWeight: 900,
-            color: "white",
-            lineHeight: 1.3,
-            marginBottom: isDesktop ? 4 : 8,
-          }}
-        >
-          {node.name}
-        </p>
-        {isDesktop && node.nameZh && (
-          <p style={{ fontSize: bodySize, color: "#9ca3af", marginBottom: 7 }}>{node.nameZh}</p>
-        )}
-        {isDesktop && (
-          <div style={{ display: "flex", gap: 4, marginBottom: 10, flexWrap: "wrap" }}>
-            <Pill scale={scale}>{`${node.wordCount} words`}</Pill>
-            <Pill scale={scale}>{node.wordCount <= 5 ? "Bite-size" : "Core vocab"}</Pill>
-            <Pill scale={scale}>{`~${node.wordCount} min`}</Pill>
-          </div>
-        )}
-        <button
-          type="button"
-          onClick={() => void onContinue(node)}
-          style={{
-            width: "100%",
-            background: "white",
-            color: "#111827",
-            fontSize: Math.round(10 * scale),
-            fontWeight: 900,
-            padding: `${Math.round(6 * scale)}px 0`,
-            borderRadius: 8,
-            border: "none",
-            cursor: "pointer",
-          }}
-        >
-          Continue →
-        </button>
-      </div>
-    );
-  }
-
-  if (node.completed) {
-    return (
-      <div
-        style={{
-          background: "#f0fdfa",
-          border: "1px solid #99f6e4",
-          borderRadius: 12,
-          padding: `${Math.round((isDesktop ? 10 : 8) * scale)}px ${Math.round((isDesktop ? 12 : 10) * scale)}px`,
-          boxShadow: "0 1px 3px rgba(0,0,0,0.04)",
-        }}
-      >
-        <p style={{ fontSize: titleSize, fontWeight: 700, color: "#0f766e", lineHeight: 1.3 }}>
-          {node.name}
-        </p>
-        <p style={{ fontSize: bodySize, color: "#5eead4", marginTop: 2 }}>Done ✓</p>
-      </div>
-    );
-  }
-
-  return (
-    <div
-      style={{
-        background: "white",
-        border: "1px solid #f3f4f6",
-        borderRadius: 12,
-        padding: `${Math.round((isDesktop ? 10 : 8) * scale)}px ${Math.round((isDesktop ? 12 : 10) * scale)}px`,
-        opacity: 0.6,
-        boxShadow: "0 1px 3px rgba(0,0,0,0.04)",
-      }}
-    >
-      <p
-        style={{
-          fontSize: compactTitleSize,
-          fontWeight: 700,
-          color: "#9ca3af",
-          lineHeight: 1.3,
-          marginBottom: isDesktop ? 5 : 0,
-        }}
-      >
-        {node.name}
-      </p>
-      {isDesktop ? (
-        <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
-          <Pill light scale={scale}>{`${node.wordCount} words`}</Pill>
-          <Pill light scale={scale}>{node.wordCount <= 5 ? "Starter" : "Core"}</Pill>
-        </div>
-      ) : (
-        <p style={{ fontSize: bodySize, color: "#d1d5db", marginTop: 2 }}>
-          {node.wordCount} words
-        </p>
-      )}
-    </div>
-  );
-}
-
-function JourneyMapNode({
-  node,
-  baseNode,
-  showDesktopDetails,
-  showLabel,
-  onContinue,
-  scale = 1,
-  hskLevel,
-}: {
-  node: PathNode;
-  baseNode: { bx: number; cy: number };
-  showDesktopDetails: boolean;
-  showLabel: boolean;
-  onContinue: (node: PathNode) => void;
-  scale?: number;
-  hskLevel?: number;
-}) {
-  const [isHovered, setIsHovered] = useState(false);
-  const isStory = node.type === "story";
-  const isTonePractice = node.type === "tone_practice";
-  const isCheckpoint = isStory || isTonePractice;
-  const checkpointClickable = isCheckpoint && (node.current || node.completed);
-  const islandClickable = node.completed || node.current || node.paywalled;
-  const hoverEligible = node.completed || node.current;
-  const hoverScale = hoverEligible && isHovered ? 1.08 : 1;
-  const onLeft = baseNode.bx < BASE_W / 2;
-  const checkpointSize = Math.round(40 * scale);
-  const islandSize = Math.round((node.current ? 52 : 44) * scale);
-  const islandRadius = Math.round((node.current ? 26 : 22) * scale);
-  const iconHalf = isCheckpoint ? checkpointSize / 2 : islandSize / 2;
-  const pctX = `${(baseNode.bx / BASE_W) * 100}%`;
-  const labelWidth = Math.round(148 * scale);
-  const labelOffset = iconHalf + 10;
-
-  const handleClick = () => {
-    if (isCheckpoint) {
-      if (checkpointClickable) {
-        void onContinue(node);
-      }
-      return;
-    }
-    if (islandClickable) {
-      void onContinue(node);
-    }
-  };
-
-  return (
-    <div
-      style={{
-        position: "absolute",
-        left: pctX,
-        top: baseNode.cy,
-        transform: "translate(-50%, -50%)",
-        zIndex: node.current ? 60 : node.completed ? 30 : 10,
-        cursor: checkpointClickable ? "pointer" : undefined,
-      }}
-    >
-      {!isCheckpoint && hskLevel && (
-        <span
-          style={{ position: "absolute", top: -6, right: -6, zIndex: 70 }}
-          className="rounded-full bg-blue-600 px-1.5 py-0.5 text-[9px] font-bold text-white shadow-sm"
-        >
-          HSK {hskLevel}
-        </span>
-      )}
-      {isCheckpoint ? (
-        <>
-          <button
-            type="button"
-            onClick={() => {
-              if (checkpointClickable) {
-                void onContinue(node);
-              }
-            }}
-            onMouseEnter={() => setIsHovered(true)}
-            onMouseLeave={() => setIsHovered(false)}
-            onKeyDown={(event) => {
-              if (!checkpointClickable) return;
-              if (event.key === "Enter" || event.key === " ") {
-                event.preventDefault();
-                void onContinue(node);
-              }
-            }}
-            style={{
-              display: "flex",
-              border: "none",
-              background: "transparent",
-              padding: 0,
-              cursor: checkpointClickable ? "pointer" : "default",
-              pointerEvents: checkpointClickable ? "auto" : "none",
-              position: "relative",
-              zIndex: 1,
-              transform: `scale(${hoverScale})`,
-              transition: "transform 220ms cubic-bezier(0.22, 1, 0.36, 1)",
-              willChange: "transform",
-            }}
-            disabled={!checkpointClickable}
-          >
-            {isTonePractice ? (
-              <TonePracticeNode size={checkpointSize} done={node.completed} current={node.current} />
-            ) : (
-              <StoryNode size={checkpointSize} done={node.completed} current={node.current} />
-            )}
-          </button>
-          {showLabel && (
-            checkpointClickable ? (
-              <button
-                type="button"
-                onClick={() => void onContinue(node)}
-                onMouseEnter={() => setIsHovered(true)}
-                onMouseLeave={() => setIsHovered(false)}
-                style={{
-                  position: "absolute",
-                  top: "50%",
-                  transform: `translateY(-50%) scale(${hoverScale})`,
-                  ...(onLeft
-                    ? { left: labelOffset }
-                    : { right: labelOffset }),
-                  width: labelWidth,
-                  border: "none",
-                  background: "transparent",
-                  padding: 0,
-                  textAlign: "left",
-                  cursor: "pointer",
-                  pointerEvents: "auto",
-                  zIndex: node.current ? 90 : 40,
-                  transition: "transform 220ms cubic-bezier(0.22, 1, 0.36, 1)",
-                  willChange: "transform",
-                }}
-              >
-                <LabelCard
-                  node={node}
-                  kind={node.type}
-                  isDesktop={showDesktopDetails}
-                  onContinue={onContinue}
-                  scale={scale}
-                />
-              </button>
-            ) : (
-              <div
-                style={{
-                  position: "absolute",
-                  top: "50%",
-                  transform: "translateY(-50%)",
-                  ...(onLeft
-                    ? { left: labelOffset }
-                    : { right: labelOffset }),
-                  width: labelWidth,
-                  pointerEvents: "none",
-                  zIndex: node.current ? 3 : 2,
-                }}
-              >
-                <LabelCard
-                  node={node}
-                  kind={node.type}
-                  isDesktop={showDesktopDetails}
-                  onContinue={onContinue}
-                  scale={scale}
-                />
-              </div>
-            )
-          )}
-        </>
-      ) : (
-        <>
-          <button
-            type="button"
-            onClick={handleClick}
-            onMouseEnter={() => setIsHovered(true)}
-            onMouseLeave={() => setIsHovered(false)}
-            style={{
-              width: islandSize,
-              height: islandSize,
-              borderRadius: 9999,
-              border: "none",
-              background: "transparent",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              cursor: islandClickable ? "pointer" : "default",
-              padding: 0,
-              transform: `scale(${hoverScale})`,
-              transition: "transform 220ms cubic-bezier(0.22, 1, 0.36, 1)",
-              willChange: "transform",
-            }}
-          >
-            {node.completed ? (
-              <DoneNode r={islandRadius} />
-            ) : node.current ? (
-              <CurrentNode
-                r={islandRadius}
-                num={node.islandOrder}
-                fontSize={Math.round(16 * scale)}
-              />
-            ) : (
-              <LockedNode
-                r={islandRadius}
-                num={node.islandOrder}
-                fontSize={Math.round(14 * scale)}
-              />
-            )}
-          </button>
-
-          {showLabel && (
-            islandClickable ? (
-              <button
-                type="button"
-                onClick={handleClick}
-                onMouseEnter={() => setIsHovered(true)}
-                onMouseLeave={() => setIsHovered(false)}
-                style={{
-                  position: "absolute",
-                  top: "50%",
-                  transform: `translateY(-50%) scale(${hoverScale})`,
-                  ...(onLeft
-                    ? { left: iconHalf + 10 }
-                    : { right: iconHalf + 10 }),
-                  width: labelWidth,
-                  border: "none",
-                  background: "transparent",
-                  padding: 0,
-                  textAlign: "left",
-                  cursor: "pointer",
-                  transition: "transform 220ms cubic-bezier(0.22, 1, 0.36, 1)",
-                  willChange: "transform",
-                }}
-              >
-                <LabelCard
-                  node={node}
-                  kind="island"
-                  isDesktop={showDesktopDetails}
-                  onContinue={onContinue}
-                  scale={scale}
-                />
-              </button>
-            ) : (
-              <div
-                style={{
-                  position: "absolute",
-                  top: "50%",
-                  transform: "translateY(-50%)",
-                  ...(onLeft
-                    ? { left: iconHalf + 10 }
-                    : { right: iconHalf + 10 }),
-                  width: labelWidth,
-                  pointerEvents: "none",
-                }}
-              >
-                <LabelCard
-                  node={node}
-                  kind="island"
-                  isDesktop={showDesktopDetails}
-                  onContinue={onContinue}
-                  scale={scale}
-                />
-              </div>
-            )
-          )}
-        </>
-      )}
-    </div>
-  );
-}
-
-function JourneySidebarPanel({
-  journey,
-  islands,
-  islandsDone,
-  totalWords,
-  learnedWords,
-  currentNode,
-  comingUp,
-  onContinue,
-  sectionLabel = "Journey",
-}: {
-  journey: { topic: string };
-  islands: PathNode[];
-  islandsDone: number;
-  totalWords: number;
-  learnedWords: number;
-  currentNode: PathNode | null;
-  comingUp: PathNode[];
-  onContinue: (node: PathNode) => void;
-  sectionLabel?: string;
-}) {
-  const progressPct =
-    islands.length > 0 ? (islandsDone / islands.length) * 100 : 0;
-  const remainingIslands = Math.max(0, islands.length - islandsDone);
-
-  return (
-    <div className="flex-shrink-0" style={{ width: 220 }}>
-      <div className="space-y-4">
-        <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
-          <div className="mb-2 flex items-center gap-2">
-            <Map className="h-4 w-4 text-gray-400" />
-            <p className="text-[10px] font-black uppercase tracking-[0.18em] text-gray-400">
-              {sectionLabel}
-            </p>
-          </div>
-          <h2 className="text-lg font-black leading-tight text-gray-900">
-            {journey.topic}
-          </h2>
-        </div>
-
-        <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
-          <p className="mb-3 text-[10px] font-black uppercase tracking-[0.18em] text-gray-400">
-            Progress
-          </p>
-          <div className="mb-2 h-2 overflow-hidden rounded-full bg-gray-100">
-            <div
-              className="h-full rounded-full bg-teal-500 transition-all duration-700"
-              style={{ width: `${progressPct}%` }}
-            />
-          </div>
-          <div className="mt-4 flex gap-2">
-            <StatBox value={islandsDone} label="done" tone="teal" />
-            <StatBox value={remainingIslands} label="left" tone="gray" />
-            <StatBox value={learnedWords} label="words" tone="dark" />
-          </div>
-        </div>
-
-
-        {comingUp.length > 0 && (
-          <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
-            <p className="mb-3 text-[10px] font-black uppercase tracking-[0.18em] text-gray-400">
-              Coming Up
-            </p>
-            <div className="space-y-3">
-              {comingUp.map((node) => (
-                <div key={node.id} className="flex items-center gap-2.5">
-                  <div className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-gray-100">
-                    {node.type === "story" ? (
-                      <BookOpen size={10} color="#fbbf24" />
-                    ) : node.type === "tone_practice" ? (
-                      <Mic size={10} color="#38bdf8" />
-                    ) : (
-                      <Lock size={9} color="#d1d5db" />
-                    )}
-                  </div>
-                  <div className="min-w-0">
-                    <p className="truncate text-xs font-medium text-gray-500">
-                      {node.name}
-                    </p>
-                    <p
-                      className={`mt-0.5 text-[9px] ${
-                        node.type === "story"
-                          ? "text-amber-300"
-                          : node.type === "tone_practice"
-                            ? "text-sky-300"
-                            : "text-gray-300"
-                      }`}
-                    >
-                      {node.type === "story"
-                        ? "Story checkpoint"
-                        : node.type === "tone_practice"
-                          ? "Pronunciation checkpoint"
-                          : `${node.wordCount} words`}
-                    </p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
-          <p className="mb-3 text-[10px] font-black uppercase tracking-[0.18em] text-gray-400">
-            Journey Stats
-          </p>
-          <div className="space-y-2 text-sm text-gray-600">
-            <div className="flex items-center justify-between">
-              <span>Islands</span>
-              <span className="font-bold text-gray-900">{islands.length}</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span>Story checkpoints</span>
-              <span className="font-bold text-gray-900">
-                {pathNodeCountStories(islands.length)}
-              </span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span>Total words</span>
-              <span className="font-bold text-gray-900">{totalWords}</span>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function StatBox({
-  value,
-  label,
-  tone,
-}: {
-  value: number;
-  label: string;
-  tone: "teal" | "gray" | "dark";
-}) {
-  const toneStyles = {
-    teal: "bg-teal-50 text-teal-700",
-    gray: "bg-gray-100 text-gray-500",
-    dark: "bg-gray-900 text-white",
-  }[tone];
-
-  return (
-    <div className={`flex-1 rounded-xl px-3 py-2 text-center ${toneStyles}`}>
-      <div className="text-sm font-black">{value}</div>
-      <div className="mt-0.5 text-[9px] font-bold uppercase tracking-[0.16em] opacity-80">
-        {label}
-      </div>
-    </div>
-  );
-}
-
-function pathNodeCountStories(islandCount: number) {
-  return Math.max(0, 7 - islandCount);
-}
-
 export default function JourneyPage() {
   const STORY_CACHE_KEY = "journey_story_checkpoint_cache_v1";
   const TONE_PRACTICE_CACHE_KEY = "journey_tone_practice_cache_v1";
@@ -968,40 +37,30 @@ export default function JourneyPage() {
   const isHskApp = pathname.startsWith("/hsk/app");
   const appBase = isHskApp ? "/hsk/app" : "/app";
   const { productTrack } = useSidebar();
+  const { t } = useLanguage();
   const isHskCurriculum = productTrack === "hsk" || isHskApp;
-  const journeySectionLabel = isHskApp ? HSK_APP_LABELS.journey.nav : "Journey";
-  const pageRef = useRef<HTMLDivElement | null>(null);
   const storyRequestRef = useRef<Record<string, Promise<string | null>>>({});
   const tonePracticeRequestRef = useRef<Record<string, Promise<string | null>>>({});
   const [loading, setLoading] = useState(true);
-  const [isDesktopViewport, setIsDesktopViewport] = useState(false);
   const [storyClickError, setStoryClickError] = useState<string | null>(null);
-  const [checkpointStoryIds, setCheckpointStoryIds] = useState<
-    Record<string, string>
-  >({});
-  const [tonePracticeSessionIds, setTonePracticeSessionIds] = useState<
-    Record<string, string>
-  >({});
+  const [checkpointStoryIds, setCheckpointStoryIds] = useState<Record<string, string>>({});
+  const [tonePracticeSessionIds, setTonePracticeSessionIds] = useState<Record<string, string>>({});
   const [journey, setJourney] = useState<{
     id: string;
     topic: string;
+    why?: string | null;
     words_per_week: number | null;
+    completed_at?: string | null;
   } | null>(null);
   const [apiNodes, setApiNodes] = useState<ApiNode[]>([]);
   const [isPro, setIsPro] = useState(false);
   const [hskLevelByIslandId, setHskLevelByIslandId] = useState<Record<string, number>>({});
-  const [pastJourneys, setPastJourneys] = useState<CompletedJourney[]>([]);
-  const pageWidth = useElementWidth(pageRef, 920);
-  const wide = isDesktopViewport && pageWidth > 560;
-  const mapUiScale =
-    pageWidth >= 560 ? Math.min(1.22, Math.max(1, pageWidth / 560)) : 1;
 
   useEffect(() => {
     const load = async () => {
-      const [journeyRes, entRes, pastRes] = await Promise.all([
+      const [journeyRes, entRes] = await Promise.all([
         fetch("/api/journey/active", { cache: "no-store" }),
         fetch("/api/entitlements"),
-        fetch("/api/journey/past", { cache: "no-store" }),
       ]);
       if (journeyRes.ok) {
         const data = await journeyRes.json();
@@ -1010,10 +69,6 @@ export default function JourneyPage() {
       }
       const ent = await entRes.json().catch(() => ({}));
       setIsPro(!!ent?.isPro);
-      if (pastRes.ok) {
-        const pastData = await pastRes.json();
-        setPastJourneys(pastData.journeys ?? []);
-      }
       setLoading(false);
     };
     void load();
@@ -1034,14 +89,6 @@ export default function JourneyPage() {
       cancelled = true;
     };
   }, [isHskApp, journey?.id]);
-
-  useEffect(() => {
-    const mediaQuery = window.matchMedia("(min-width: 768px)");
-    const syncViewport = () => setIsDesktopViewport(mediaQuery.matches);
-    syncViewport();
-    mediaQuery.addEventListener("change", syncViewport);
-    return () => mediaQuery.removeEventListener("change", syncViewport);
-  }, []);
 
   useEffect(() => {
     if (!journey) return;
@@ -1079,14 +126,11 @@ export default function JourneyPage() {
     }
   }, [journey]);
 
-  const pathNodes = useMemo((): PathNode[] => {
-    const sorted = [...apiNodes].sort(
-      (a, b) => (a.position ?? 0) - (b.position ?? 0),
-    );
+  const pathNodes = useMemo((): JourneyPathNode[] => {
+    const sorted = [...apiNodes].sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
     const firstIncompleteId = sorted.find((node) => !node.completed_at)?.id;
     return sorted.map((node) => {
-      const islandOrder =
-        node.order && node.order <= 10 ? node.order : node.position;
+      const islandOrder = node.order && node.order <= 10 ? node.order : node.position;
       return {
         id: node.id,
         type: node.node_type,
@@ -1095,7 +139,10 @@ export default function JourneyPage() {
         name: node.name,
         nameZh: node.zh ?? undefined,
         hint: node.hint ?? undefined,
-        wordCount: node.word_count ?? (islandOrder === 1 ? 5 : 10),
+        wordCount:
+          node.node_type === "island"
+            ? (node.word_count ?? (islandOrder === 1 ? 5 : 10))
+            : 0,
         islandId: node.island_id ?? undefined,
         storyId: node.story_id ?? undefined,
         pronunciationSessionId: node.pronunciation_session_id ?? undefined,
@@ -1106,39 +153,7 @@ export default function JourneyPage() {
     });
   }, [apiNodes, isPro]);
 
-  const hskVocabRangeLabel = useMemo(() => {
-    const levels = Object.values(hskLevelByIslandId);
-    if (levels.length === 0) return null;
-    const min = Math.min(...levels);
-    const max = Math.max(...levels);
-    return min === max ? `HSK ${min} vocab` : `HSK ${min}–${max} vocab`;
-  }, [hskLevelByIslandId]);
-
-  const islands = pathNodes.filter((node) => node.type === "island");
-  const islandsDone = islands.filter((node) => node.completed).length;
-  const totalWords = islands.reduce((sum, node) => sum + node.wordCount, 0);
-  const learnedWords = islands
-    .filter((node) => node.completed)
-    .reduce((sum, node) => sum + node.wordCount, 0);
   const currentNode = pathNodes.find((node) => node.current) ?? null;
-  const currentNodeIndex = pathNodes.findIndex((node) => node.current);
-  const pathD = buildPath(
-    MAP_NODES.map((node) => ({ cx: node.bx, cy: node.cy })),
-  );
-  const progressPathD = useMemo(() => {
-    if (pathNodes.length === 0) return "";
-    if (currentNodeIndex >= 0) {
-      const progressNodes = MAP_NODES.slice(0, currentNodeIndex + 1).map((node) => ({
-        cx: node.bx,
-        cy: node.cy,
-      }));
-      return progressNodes.length > 1 ? buildPath(progressNodes) : "";
-    }
-    return pathNodes.every((node) => node.completed) ? pathD : "";
-  }, [currentNodeIndex, pathD, pathNodes]);
-  const showMapLabels = pageWidth > 430;
-  const showDesktopMapDetails = pageWidth > 960;
-  const comingUp = pathNodes.filter((node) => !node.completed && !node.current).slice(0, 3);
 
   const saveCheckpointStoryId = useCallback((nodeId: string, storyId: string) => {
     if (!journey) return;
@@ -1156,7 +171,7 @@ export default function JourneyPage() {
     }
   }, [journey]);
 
-  const resolveCheckpointStoryId = useCallback(async (node: PathNode) => {
+  const resolveCheckpointStoryId = useCallback(async (node: JourneyPathNode, quiet = false) => {
     if (!journey || node.type !== "story") return null;
 
     const cachedStoryId = node.storyId ?? checkpointStoryIds[node.id];
@@ -1180,9 +195,13 @@ export default function JourneyPage() {
         return data.storyId as string;
       }
 
-      setStoryClickError(
-        typeof data?.error === "string" ? data.error : "Couldn't open story checkpoint yet.",
-      );
+      if (!quiet) {
+        setStoryClickError(
+          toJourneyUserError(data?.error, "Couldn't open story checkpoint yet."),
+        );
+      } else {
+        console.warn("[journey] story prefetch", data?.error);
+      }
       return null;
     })();
 
@@ -1210,7 +229,7 @@ export default function JourneyPage() {
     }
   }, [journey]);
 
-  const resolveTonePracticeSessionId = useCallback(async (node: PathNode) => {
+  const resolveTonePracticeSessionId = useCallback(async (node: JourneyPathNode, quiet = false) => {
     if (!journey || node.type !== "tone_practice") return null;
 
     const cachedSessionId = node.pronunciationSessionId ?? tonePracticeSessionIds[node.id];
@@ -1234,9 +253,13 @@ export default function JourneyPage() {
         return data.sessionId as string;
       }
 
-      setStoryClickError(
-        typeof data?.error === "string" ? data.error : "Couldn't start pronunciation practice yet.",
-      );
+      if (!quiet) {
+        setStoryClickError(
+          toJourneyUserError(data?.error, "Couldn't start pronunciation practice yet."),
+        );
+      } else {
+        console.warn("[journey] tone prefetch", data?.error);
+      }
       return null;
     })();
 
@@ -1251,19 +274,19 @@ export default function JourneyPage() {
   useEffect(() => {
     if (!journey || !currentNode || currentNode.type !== "story") return;
     void (async () => {
-      const storyId = await resolveCheckpointStoryId(currentNode);
+      const storyId = await resolveCheckpointStoryId(currentNode, true);
       if (storyId) {
         router.prefetch(
           `${appBase}/journey/${journey.id}/story/${storyId}?journeyNodeId=${encodeURIComponent(currentNode.id)}`,
         );
       }
     })();
-  }, [journey, currentNode, resolveCheckpointStoryId, router]);
+  }, [journey, currentNode, resolveCheckpointStoryId, router, appBase]);
 
   useEffect(() => {
     if (!journey || !currentNode || currentNode.type !== "tone_practice") return;
     void (async () => {
-      const sessionId = await resolveTonePracticeSessionId(currentNode);
+      const sessionId = await resolveTonePracticeSessionId(currentNode, true);
       if (sessionId) {
         router.prefetch(
           `/app/pronunciation/session/${sessionId}?journeyId=${encodeURIComponent(journey.id)}&journeyNodeId=${encodeURIComponent(currentNode.id)}`,
@@ -1272,7 +295,7 @@ export default function JourneyPage() {
     })();
   }, [journey, currentNode, resolveTonePracticeSessionId, router, appBase]);
 
-  const handleContinue = async (node: PathNode) => {
+  const handleContinue = async (node: JourneyPathNode) => {
     if (!journey) return;
     setStoryClickError(null);
     if (node.type === "story") {
@@ -1312,7 +335,7 @@ export default function JourneyPage() {
     }
   };
 
-  const handleStoryOpen = (node: PathNode) => {
+  const handleStoryOpen = (node: JourneyPathNode) => {
     if (!journey || node.type !== "story") return;
     setStoryClickError(null);
 
@@ -1329,7 +352,7 @@ export default function JourneyPage() {
     );
   };
 
-  const handleTonePracticeOpen = async (node: PathNode) => {
+  const handleTonePracticeOpen = async (node: JourneyPathNode) => {
     if (!journey || node.type !== "tone_practice") return;
     setStoryClickError(null);
     const sessionId = await resolveTonePracticeSessionId(node);
@@ -1340,16 +363,24 @@ export default function JourneyPage() {
     }
   };
 
+  const handleNodeActivate = (node: JourneyPathNode) => {
+    if (node.type === "story") {
+      handleStoryOpen(node);
+      return;
+    }
+    if (node.type === "tone_practice") {
+      void handleTonePracticeOpen(node);
+      return;
+    }
+    void handleContinue(node);
+  };
+
   if (isHskCurriculum) {
     return <HskCurriculumSection basePath={appBase} />;
   }
 
   if (loading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center text-gray-400">
-        Loading…
-      </div>
-    );
+    return <AppPageLoading />;
   }
 
   if (!journey) {
@@ -1357,20 +388,20 @@ export default function JourneyPage() {
       <div className="flex min-h-screen items-center justify-center px-6">
         <div className="max-w-[520px] text-center">
           <p className="mb-4 text-5xl">🗺️</p>
-          <h2 className="text-xl font-black text-gray-900">
-            {isHskApp ? HSK_APP_LABELS.journey.title : "Start your first Journey"}
+          <h2 className="lingo-display text-xl font-bold text-[var(--lingo-navy)]">
+            {isHskApp ? t(HSK_APP_LABELS.journey.title) : t("Start your first Journey")}
           </h2>
-          <p className="mx-auto mt-2 max-w-xs text-sm leading-relaxed text-gray-400">
+          <p className="mx-auto mt-2 max-w-xs text-sm leading-relaxed text-[var(--lingo-text-muted)]">
             {isHskApp
-              ? HSK_APP_LABELS.journey.description
-              : "Pick a topic. Get a personalised 5-island path with stories woven in to lock in the words."}
+              ? t(HSK_APP_LABELS.journey.description)
+              : t("Pick a topic. Get a personalised 5-island path with stories woven in to lock in the words.")}
           </p>
           <button
             type="button"
             onClick={() => router.push(`${appBase}/journey/create`)}
-            className="mt-6 rounded-xl bg-gray-900 px-7 py-3 text-sm font-black text-white transition-colors hover:bg-gray-700"
+            className="mt-6 rounded-2xl bg-[var(--lingo-navy)] px-7 py-3 text-sm font-bold text-white transition-colors hover:bg-[var(--lingo-navy-soft)]"
           >
-            {isHskApp ? "Build your path →" : "Create a Journey →"}
+            {isHskApp ? t("Build your path →") : t("Create a Journey →")}
           </button>
         </div>
       </div>
@@ -1378,172 +409,36 @@ export default function JourneyPage() {
   }
 
   return (
-    <div className="min-h-screen bg-white px-4 py-6 md:px-6 md:py-8 lg:px-10">
-      <div className="mx-auto w-full max-w-[1380px]">
-        <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <p className="text-[10px] font-black uppercase tracking-[0.18em] text-gray-400">
-              {isHskApp ? HSK_APP_LABELS.journey.eyebrow : "Learning Path"}
-            </p>
-            <h1 className="mt-1 text-3xl font-black tracking-tight text-gray-900">
-              {journey.topic}
-            </h1>
-            <p className="mt-1 text-sm text-gray-500">
-              {learnedWords} / {totalWords} words learned
-              {isHskApp && hskVocabRangeLabel && (
-                <span className="ml-2 inline-flex items-center rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-bold text-blue-700">
-                  {hskVocabRangeLabel}
-                </span>
-              )}
-            </p>
-          </div>
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => router.push(`${appBase}/journey/past`)}
-              className="flex items-center justify-center gap-2 rounded-xl bg-[#1a2332] px-5 py-3 text-sm font-bold text-white shadow-sm transition-colors hover:bg-[#2d3a4d]"
-            >
-              <Clock className="h-3.5 w-3.5" />
-              My Journeys
-            </button>
-            <button
-              type="button"
-              onClick={() => router.push(`${appBase}/journey/create`)}
-              className="flex items-center justify-center gap-1.5 rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm font-semibold text-gray-600 shadow-sm transition-colors hover:bg-gray-50"
-            >
-              <Plus className="h-3.5 w-3.5" />
-              New Journey
-            </button>
-          </div>
-        </div>
-
-        <div
-          ref={pageRef}
-          style={{
-            display: "flex",
-            flexDirection: wide ? "row" : "column",
-            gap: wide ? 32 : 24,
-            width: "100%",
-            alignItems: "flex-start",
-          }}
-        >
-          <div style={{ flex: "1 1 760px", minWidth: 0, width: "100%" }}>
-            <div
-              className="relative w-full max-w-[600px] sm:rounded-3xl sm:bg-slate-50"
-              style={{
-                position: "relative",
-                width: "100%",
-                maxWidth: MAX_W,
-                height: MAP_H,
-                margin: "0 auto",
-              }}
-            >
-              <div
-                style={{
-                  position: "absolute",
-                  inset: 0,
-                  overflow: "hidden",
-                }}
-              >
-                <svg
-                  viewBox={`0 0 ${BASE_W} ${MAP_H}`}
-                  width="100%"
-                  height={MAP_H}
-                  preserveAspectRatio="none"
-                  style={{
-                    position: "absolute",
-                    inset: 0,
-                    display: "block",
-                    pointerEvents: "none",
-                  }}
-                >
-                  <path
-                    d={pathD}
-                    fill="none"
-                    stroke="#e2e8f0"
-                    strokeWidth={22}
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    pathLength={1000}
-                    style={{ vectorEffect: "non-scaling-stroke" }}
-                  />
-                  <path
-                    d={pathD}
-                    fill="none"
-                    stroke="white"
-                    strokeWidth={3}
-                    strokeLinecap="round"
-                    strokeDasharray="12 16"
-                    pathLength={1000}
-                    style={{ vectorEffect: "non-scaling-stroke" }}
-                  />
-                  <path
-                    d={progressPathD}
-                    fill="none"
-                    stroke="#14b8a6"
-                    strokeWidth={10}
-                    strokeLinecap="round"
-                    style={{ vectorEffect: "non-scaling-stroke" }}
-                  />
-                </svg>
-
-                {pathNodes.map((node, index) => (
-                  <JourneyMapNode
-                    key={node.id}
-                    node={node}
-                    baseNode={MAP_NODES[index] ?? MAP_NODES[0]}
-                    showDesktopDetails={showDesktopMapDetails}
-                    onContinue={(pathNode) =>
-                      pathNode.type === "story"
-                        ? handleStoryOpen(pathNode)
-                        : pathNode.type === "tone_practice"
-                          ? void handleTonePracticeOpen(pathNode)
-                          : void handleContinue(pathNode)
-                    }
-                    showLabel={showMapLabels}
-                    scale={mapUiScale}
-                    hskLevel={isHskApp && node.islandId ? hskLevelByIslandId[node.islandId] : undefined}
-                  />
-                ))}
-
-                <div className="pointer-events-none absolute inset-x-0 bottom-0 pb-3 text-center">
-                  <p className="text-[11px] font-semibold text-slate-300">
-                    Finish to unlock your next journey
-                  </p>
-                </div>
-              </div>
-            </div>
-            {storyClickError && (
-              <p className="mt-3 text-center text-xs font-semibold text-rose-500">
-                {storyClickError}
-              </p>
-            )}
-
-          </div>
-
-          {wide && (
-            <JourneySidebarPanel
-              journey={journey}
-              islands={islands}
-              islandsDone={islandsDone}
-              totalWords={totalWords}
-              learnedWords={learnedWords}
-              currentNode={currentNode}
-              comingUp={comingUp}
-              sectionLabel={journeySectionLabel}
-              onContinue={(pathNode) =>
-                pathNode.type === "story"
-                  ? handleStoryOpen(pathNode)
-                  : pathNode.type === "tone_practice"
-                    ? void handleTonePracticeOpen(pathNode)
-                    : void handleContinue(pathNode)
-              }
-            />
-          )}
-        </div>
-
-        <BrowsePreviousJourneys pastJourneys={pastJourneys} />
-      </div>
-    </div>
+    <JourneyDashboard
+      title={journey.topic}
+      why={journey.why}
+      completedAt={journey.completed_at}
+      eyebrow={isHskApp ? t(HSK_APP_LABELS.journey.eyebrow) : t("Learning Path")}
+      pathNodes={pathNodes}
+      onNodeActivate={handleNodeActivate}
+      clickError={storyClickError}
+      hskLevelByIslandId={isHskApp ? hskLevelByIslandId : undefined}
+      headerActions={
+        <>
+          <button
+            type="button"
+            onClick={() => router.push(`${appBase}/journey/past`)}
+            className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[var(--lingo-navy)] px-5 py-3 text-sm font-bold text-white shadow-sm transition-colors hover:bg-[var(--lingo-navy-soft)]"
+          >
+            <Clock className="h-3.5 w-3.5" />
+            {t("My Journeys")}
+          </button>
+          <button
+            type="button"
+            onClick={() => router.push(`${appBase}/journey/create`)}
+            className="inline-flex items-center justify-center gap-1.5 rounded-2xl border bg-white px-4 py-3 text-sm font-semibold text-[var(--lingo-navy)] shadow-sm transition-colors hover:bg-[var(--lingo-sky-pale)]"
+            style={{ borderColor: "var(--lingo-border)" }}
+          >
+            <Plus className="h-3.5 w-3.5" />
+            {t("New Journey")}
+          </button>
+        </>
+      }
+    />
   );
 }

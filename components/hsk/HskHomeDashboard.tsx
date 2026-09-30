@@ -13,6 +13,7 @@ import {
   Star,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/browser";
+import AppPageLoading from "@/components/app/AppPageLoading";
 import type { JourneyNode } from "@/components/app/PathNode";
 import PathNode from "@/components/app/PathNode";
 import { daysUntil, formatHskLevel } from "@/lib/utils/hsk";
@@ -329,11 +330,7 @@ export default function HskHomeDashboard({
   }, []);
 
   if (loading) {
-    return (
-      <div className="flex min-h-full items-center justify-center bg-white">
-        <span className="text-sm text-[var(--lingo-text-muted)]">Loading…</span>
-      </div>
-    );
+    return <AppPageLoading />;
   }
 
   const currentNode = journeyNodes.find((n) => !n.completed_at) ?? null;

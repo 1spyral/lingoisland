@@ -9,11 +9,16 @@ import {
   type LearnIsland,
   type LearnWord,
 } from "@/components/app/LearnSequence/types";
+import AppPageLoading from "@/components/app/AppPageLoading";
+import { useLanguage } from "@/contexts/LanguageContext";
+import { useCharacterSet } from "@/contexts/CharacterSetContext";
 
 export default function IslandChatPage() {
   const { id } = useParams();
   const islandId = id as string;
   const router = useRouter();
+  const { t } = useLanguage();
+  const { convertText } = useCharacterSet();
   const [island, setIsland] = useState<LearnIsland | null>(null);
   const [words, setWords] = useState<LearnWord[]>([]);
   const [userCefrLevel, setUserCefrLevel] = useState<string | null | undefined>(
@@ -45,23 +50,19 @@ export default function IslandChatPage() {
   const learnLevel = useLearnLevel(island, userCefrLevel);
 
   if (loading) {
-    return (
-      <div className="flex h-screen items-center justify-center bg-[#D6EEF8] text-gray-500">
-        Loading…
-      </div>
-    );
+    return <AppPageLoading className="bg-[#D6EEF8]" />;
   }
 
   if (!island) {
     return (
       <div className="flex h-screen flex-col items-center justify-center gap-4 bg-[#D6EEF8] px-6 text-center">
-        <p className="text-gray-600">Island not found.</p>
+        <p className="text-gray-600">{t("Island not found.")}</p>
         <button
           type="button"
           onClick={() => router.back()}
           className="text-sm font-semibold text-[#2176AE]"
         >
-          ← Back
+          ← {t("Back")}
         </button>
       </div>
     );
@@ -75,16 +76,16 @@ export default function IslandChatPage() {
           onClick={() => router.back()}
           className="text-sm font-semibold text-[#2176AE]"
         >
-          ← Back
+          ← {t("Back")}
         </button>
         <div className="min-w-0">
           <h1
             className="text-base font-semibold text-[#071E2E]"
             style={{ fontFamily: "'Lora', Georgia, serif" }}
           >
-            Chat with <span className="text-[#2176AE]">华华</span>
+            {t("Chat with")} <span className="text-[#2176AE]">华华</span>
           </h1>
-          <p className="truncate text-xs text-gray-500">{island.topic}</p>
+          <p className="truncate text-xs text-gray-500">{convertText(island.topic)}</p>
         </div>
       </div>
 

@@ -8,8 +8,13 @@ import StoryReader, {
   type StoryTargetWord,
 } from "@/components/stories/StoryReader";
 import { useOnboarding } from "@/contexts/OnboardingContext";
+import AppPageLoading from "@/components/app/AppPageLoading";
+import { useLanguage } from "@/contexts/LanguageContext";
+import { useCharacterSet } from "@/contexts/CharacterSetContext";
 
 export default function StoryDetailPage() {
+  const { t } = useLanguage();
+  const { convertText } = useCharacterSet();
   const params = useParams();
   const searchParams = useSearchParams();
   const storyId = params.id as string;
@@ -87,17 +92,13 @@ export default function StoryDetailPage() {
   }, [storyId, supabase]);
 
   if (loading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center">
-        <div className="text-gray-600">Loading story...</div>
-      </div>
-    );
+    return <AppPageLoading label={convertText(t("Loading story..."))} />;
   }
 
   if (!story) {
     return (
       <div className="flex min-h-screen items-center justify-center">
-        <div className="text-gray-600">{error || "Story not found"}</div>
+        <div className="text-gray-600">{error || convertText(t("Story not found"))}</div>
       </div>
     );
   }
