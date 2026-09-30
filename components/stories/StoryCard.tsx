@@ -74,7 +74,7 @@ export default function StoryCard({ story }: { story: StorySummary }) {
           </p>
         ) : null}
         <p className="mt-1.5 truncate text-[12px] text-[var(--lingo-text-muted)]">
-          {[hskLabelForCefr(story.level), dateLabel, getTimeLabel(story.story_zh, t("min"))]}
+          {[hskLabelForCefr(story.level), dateLabel, getTimeLabel(story.story_zh, t("min"))]
             .filter(Boolean)
             .join(" · ")}
         </p>

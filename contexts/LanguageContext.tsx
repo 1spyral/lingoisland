@@ -37,7 +37,6 @@ const translations: Record<string, { en: string; zh: string }> = {
   Journey: { en: "Journey", zh: "旅程" },
   Pronunciation: { en: "Pronunciation", zh: "发音" },
   "My Islands": { en: "My Islands", zh: "我的岛屿" },
-  More: { en: "More", zh: "更多" },
 
   // Page Titles
   "Deck Manager": { en: "Deck Manager", zh: "卡片组管理" },
@@ -821,7 +820,6 @@ const translations: Record<string, { en: string; zh: string }> = {
   "Listen first": { en: "Listen first", zh: "先听" },
   "Say the word": { en: "Say the word", zh: "说出这个词" },
   "Now say the sentence": { en: "Now say the sentence", zh: "现在说出整句" },
-  Preparing: { en: "Preparing…", zh: "准备中…" },
 
   // Story extra
   "Loading story...": { en: "Loading story...", zh: "正在加载故事..." },
@@ -840,7 +838,6 @@ const translations: Record<string, { en: string; zh: string }> = {
     en: "Type hanzi, pinyin, or English...",
     zh: "输入汉字、拼音或英文...",
   },
-  Island: { en: "Island", zh: "岛屿" },
   "Island not found": { en: "Island not found", zh: "未找到岛屿" },
   Pattern: { en: "Pattern", zh: "句型" },
 

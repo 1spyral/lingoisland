@@ -365,7 +365,7 @@ function layoutDesktop(nodes: readonly JourneyMapNode[]): JourneyMapLayout {
   const artwork = assignArtwork(nodes);
   const { placed, stageHeight } = placeIllustrated(nodes, artwork);
   const obstacles: StageRect[] = [];
-  for (const node of placed.values()) {
+  for (const node of Array.from(placed.values())) {
     const rects = placedNodeRects(node);
     obstacles.push(rects.art, rects.label);
   }
@@ -382,7 +382,9 @@ function layoutDesktop(nodes: readonly JourneyMapNode[]): JourneyMapLayout {
 
     let end = index;
     while (end < nodes.length && nodes[end].type === "tone_practice") end += 1;
-    const previousIllustrated = [...placed.values()].reverse().find((item) => {
+    const previousIllustrated = Array.from(placed.values())
+      .reverse()
+      .find((item) => {
       const previousIndex = nodes.findIndex((candidate) => candidate.id === item.id);
       return previousIndex >= 0 && previousIndex < index;
     });
