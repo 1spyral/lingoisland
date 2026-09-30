@@ -1,19 +1,16 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { createClient } from "@/lib/supabase/browser";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
+import useSWR, { useSWRConfig } from "swr";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useCharacterSet } from "@/contexts/CharacterSetContext";
-import type { DailyStorySummary } from "@/components/stories/DailyStoryCard";
 import JourneyHero from "@/components/app/JourneyHero";
 import { getLocalDateKey } from "@/lib/utils/date";
-import { useSidebar } from "@/components/app/AppLayoutClient";
 import UpgradeModal from "@/components/app/UpgradeModal";
 import OnboardingNudgeBanner from "@/components/Onboarding/OnboardingNudgeBanner";
-import { useSubscription } from "@/hooks/useSubscription";
 import { STAGE_THRESHOLDS, STAGE_NAMES, STAGE_EMOJIS } from "@/lib/huahua";
 import { useProgressIslandSrc } from "@/lib/progressIslandImage";
 import { hskLabelForCefr } from "@/lib/levelBands";
@@ -22,49 +19,34 @@ import {
   HSK_CARD_SHADOW,
   HSK_CARD_SHADOW_HOVER,
 } from "@/lib/glossy-theme";
+import type { HomeCore, HomeStats, HomeStory } from "@/lib/home/loadHomeDashboard";
 import { ArrowRight, Flame, Layers, Plus } from "lucide-react";
-import AppPageLoading from "@/components/app/AppPageLoading";
-
-// ─── Types (unchanged) ────────────────────────────────────────────────────────
-
-interface TopicIsland {
-  id: string;
-  topic: string;
-  level: string;
-  word_target: number;
-  status: string;
-  created_at: string;
-}
-
-interface QuizCardSummary {
-  reviewState?: {
-    dueAt?: string | null;
-  } | null;
-}
-
-interface QuizIslandSummary {
-  id: string;
-  name: string;
-  card_count: number;
-}
-
-interface FlashcardDeckCard extends QuizIslandSummary {
-  dueCount: number;
-  totalCount: number;
-  statusLabel: string;
-  progressPercent: number;
-}
-
-interface QuizStatsRow {
-  forgot_count: number;
-  hard_count: number;
-  good_count: number;
-  easy_count: number;
-  new_count: number;
-  total_count: number;
-}
 
 const STORAGE_KEY = "pending_topic_island_request";
+
+async function fetchHomeCore(url: string, userId: string): Promise<HomeCore> {
+  const response = await fetch(url, { cache: "no-store" });
+  if (!response.ok) {
+    throw new Error("Failed to load home");
+  }
+  const data = (await response.json()) as HomeCore;
+  if (data.userId !== userId) {
+    throw new Error("Home data was for a different account");
+  }
+  return data;
+}
+
+async function fetchHomeStats(url: string, userId: string): Promise<HomeStats> {
+  const response = await fetch(url, { cache: "no-store" });
+  if (!response.ok) {
+    throw new Error("Failed to load home stats");
+  }
+  const data = (await response.json()) as HomeStats;
+  if (data.userId !== userId) {
+    throw new Error("Home stats were for a different account");
+  }
+  return data;
+}
 
 // ─── Capybara constants ────────────────────────────────────────────────────────
 
@@ -122,19 +104,25 @@ function DashCardShell({
 function CapybaraCard({
   stage,
   totalReviews,
+  status,
+  onRetry,
 }: {
-  stage: number;
-  totalReviews: number;
+  stage: number | null;
+  totalReviews: number | null;
+  status: "ready" | "error" | "loading";
+  onRetry: () => void;
 }) {
-  const safeStage = Math.min(5, Math.max(1, stage || 1));
+  const ready = status === "ready" && stage != null && totalReviews != null;
+  const safeStage = Math.min(5, Math.max(1, ready ? stage || 1 : 1));
   const prevThreshold = STAGE_THRESHOLDS[safeStage - 1] ?? 0;
   const nextThreshold = safeStage < 5 ? STAGE_THRESHOLDS[safeStage] : null;
   const stageRange = nextThreshold ? nextThreshold - prevThreshold : 10;
+  const reviewCount = totalReviews ?? 0;
   const stageProgress = nextThreshold
-    ? Math.min(100, ((totalReviews - prevThreshold) / stageRange) * 100)
+    ? Math.min(100, ((reviewCount - prevThreshold) / stageRange) * 100)
     : 100;
   const reviewsUntilNext = nextThreshold
-    ? Math.max(0, nextThreshold - totalReviews)
+    ? Math.max(0, nextThreshold - reviewCount)
     : 0;
   const isComplete = safeStage === 5;
   const stageName = STAGE_NAMES[safeStage - 1];
@@ -144,15 +132,19 @@ function CapybaraCard({
   return (
     <DashCardShell id="progress-island-card">
       <div className="flex h-[200px] items-center justify-center bg-[var(--lingo-sky-pale)] px-2 sm:h-[220px]">
-        <div className="relative h-full w-full">
-          <Image
-            src={islandSrc}
-            alt={`华华's island — Stage ${safeStage}`}
-            fill
-            className="object-contain"
-            sizes="(max-width: 768px) 100vw, 320px"
-          />
-        </div>
+        {ready ? (
+          <div className="relative h-full w-full">
+            <Image
+              src={islandSrc}
+              alt={`华华's island — Stage ${safeStage}`}
+              fill
+              className="object-contain"
+              sizes="(max-width: 768px) 100vw, 320px"
+            />
+          </div>
+        ) : (
+          <div className="h-[70%] w-[70%] animate-pulse rounded-3xl bg-white/70" />
+        )}
       </div>
       <div className="flex flex-1 flex-col p-5 sm:p-6">
         <span className="mb-3 inline-flex h-11 w-11 items-center justify-center rounded-xl bg-[var(--lingo-sky-pale)] text-[var(--lingo-blue)]">
@@ -161,6 +153,22 @@ function CapybaraCard({
         <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-[var(--lingo-teal)]">
           华华&apos;s Island
         </p>
+        {!ready ? (
+          <div className="mt-3 flex flex-1 flex-col">
+            <div className="h-6 w-40 animate-pulse rounded bg-[var(--lingo-sky-pale)]" />
+            <div className="mt-3 h-1.5 w-full animate-pulse rounded-full bg-[var(--lingo-sky-pale)]" />
+            {status === "error" && (
+              <button
+                type="button"
+                onClick={onRetry}
+                className="mt-4 text-left text-sm font-bold text-[var(--lingo-blue)]"
+              >
+                Retry
+              </button>
+            )}
+          </div>
+        ) : (
+          <>
         <h3 className="lingo-display mt-1.5 text-lg text-[var(--lingo-navy)]">
           Stage {safeStage} · {stageName}
         </h3>
@@ -189,6 +197,8 @@ function CapybaraCard({
         >
           Review cards <ArrowRight className="h-3.5 w-3.5" aria-hidden />
         </Link>
+          </>
+        )}
       </div>
     </DashCardShell>
   );
@@ -196,24 +206,37 @@ function CapybaraCard({
 
 function HomeDailyStoryCard({
   story,
-  loading,
+  status,
+  onRetry,
 }: {
-  story: DailyStorySummary | null;
-  loading: boolean;
+  story: HomeStory | null;
+  status: "ready" | "empty" | "error" | "loading";
+  onRetry: () => void;
 }) {
-  if (loading) {
+  const { t } = useLanguage();
+  const { convertText } = useCharacterSet();
+
+  if (status === "loading" || status === "error") {
     return (
       <DashCardShell>
         <div className="flex h-[200px] items-center justify-center bg-[var(--lingo-sky-pale)] sm:h-[220px]">
-          <div className="h-5 w-5 animate-spin rounded-full border-2 border-[var(--lingo-accent-border)] border-t-[var(--lingo-blue)]" />
+          <div className="h-14 w-14 animate-pulse rounded-2xl bg-white" />
         </div>
         <div className="flex flex-1 flex-col p-5 sm:p-6">
           <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-[var(--lingo-teal)]">
-            Daily Story
+            {convertText(t("Daily Story"))}
           </p>
-          <p className="mt-2 text-sm text-[var(--lingo-text-muted)]">
-            Generating today&apos;s story…
-          </p>
+          <div className="mt-3 h-6 w-48 animate-pulse rounded bg-[var(--lingo-sky-pale)]" />
+          <div className="mt-3 h-12 w-full animate-pulse rounded bg-[var(--lingo-sky-pale)]" />
+          {status === "error" && (
+            <button
+              type="button"
+              onClick={onRetry}
+              className="mt-4 text-left text-sm font-bold text-[var(--lingo-blue)]"
+            >
+              Retry
+            </button>
+          )}
         </div>
       </DashCardShell>
     );
@@ -221,30 +244,34 @@ function HomeDailyStoryCard({
 
   if (!story) {
     return (
-      <DashCardShell>
-        <div className="flex h-[200px] flex-col items-center justify-center bg-[var(--lingo-sky-pale)] sm:h-[220px]">
-          <span className="inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-white text-2xl shadow-sm">
-            📖
-          </span>
-        </div>
-        <div className="flex flex-1 flex-col p-5 sm:p-6">
-          <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-[var(--lingo-teal)]">
-            Daily Story
-          </p>
-          <h3 className="lingo-display mt-1.5 text-lg text-[var(--lingo-navy)]">
-            No story yet today
-          </h3>
-          <p className="mt-1.5 flex-1 text-sm leading-relaxed text-[var(--lingo-text-muted)]">
-            Generate a short reading for today&apos;s practice.
-          </p>
-          <Link
-            href="/app/story/daily"
-            className="mt-4 inline-flex items-center gap-1 text-sm font-bold text-[var(--lingo-blue)] transition-colors group-hover:text-[var(--lingo-navy)]"
-          >
-            Generate story <ArrowRight className="h-3.5 w-3.5" aria-hidden />
-          </Link>
-        </div>
-      </DashCardShell>
+      <Link href="/app/story/daily" className="block h-full">
+        <DashCardShell>
+          <div className="flex h-[200px] flex-col items-center justify-center bg-[var(--lingo-sky-pale)] sm:h-[220px]">
+            <span className="inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-white text-2xl shadow-sm">
+              📖
+            </span>
+          </div>
+          <div className="flex flex-1 flex-col p-5 sm:p-6">
+            <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-[var(--lingo-teal)]">
+              {convertText(t("Daily Story"))}
+            </p>
+            <h3 className="lingo-display mt-1.5 text-lg text-[var(--lingo-navy)]">
+              {convertText(t("Click me to read your daily story!"))}
+            </h3>
+            <p className="mt-1.5 flex-1 text-sm leading-relaxed text-[var(--lingo-text-muted)]">
+              {convertText(
+                t(
+                  "Today's story weaves in words you've recently learned so you can recall them in a short reading."
+                )
+              )}
+            </p>
+            <span className="mt-4 inline-flex items-center gap-1 text-sm font-bold text-[var(--lingo-blue)] transition-colors group-hover:text-[var(--lingo-navy)]">
+              {convertText(t("Read story"))}{" "}
+              <ArrowRight className="h-3.5 w-3.5" aria-hidden />
+            </span>
+          </div>
+        </DashCardShell>
+      </Link>
     );
   }
 
@@ -284,7 +311,7 @@ function HomeDailyStoryCard({
       </div>
       <div className="flex flex-1 flex-col p-5 sm:p-6">
         <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-[var(--lingo-teal)]">
-          Daily Story · Today
+          {convertText(t("Daily Story · Today"))}
         </p>
         {excerpt && (
           <p className="mt-2 line-clamp-3 flex-1 text-sm leading-relaxed text-[var(--lingo-text-muted)]">
@@ -295,7 +322,8 @@ function HomeDailyStoryCard({
           href={storyId ? `/app/story/${storyId}` : "/app/story/daily"}
           className="mt-4 inline-flex items-center gap-1 text-sm font-bold text-[var(--lingo-blue)] transition-colors group-hover:text-[var(--lingo-navy)]"
         >
-          Read story <ArrowRight className="h-3.5 w-3.5" aria-hidden />
+          {convertText(t("Read story"))}{" "}
+          <ArrowRight className="h-3.5 w-3.5" aria-hidden />
         </Link>
       </div>
     </DashCardShell>
@@ -344,67 +372,86 @@ function CreateIslandDashCard() {
 
 // ─── Main dashboard ───────────────────────────────────────────────────────────
 
+function ChipSkeleton() {
+  return (
+    <span className="inline-flex h-[30px] w-28 animate-pulse rounded-full bg-[var(--lingo-sky-pale)]" />
+  );
+}
+
+function RetryChip({ onClick }: { onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="inline-flex items-center rounded-full border border-[var(--lingo-accent-border)] bg-white px-3 py-1.5 text-xs font-bold text-[var(--lingo-blue)]"
+    >
+      Retry
+    </button>
+  );
+}
+
 export default function HomeDashboard({
-  dailyStory,
+  initialCore,
 }: {
-  dailyStory: DailyStorySummary | null;
+  initialCore: HomeCore;
 }) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const supabase = createClient();
-  const { t } = useLanguage();
-  const { convertText } = useCharacterSet();
-  const [topicIslands, setTopicIslands] = useState<TopicIsland[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [dailyStoryLocal, setDailyStoryLocal] =
-    useState<DailyStorySummary | null>(dailyStory);
-  const [dailyLoading, setDailyLoading] = useState(false);
-  const dailyHasTriedRef = useRef(false);
-  const [dueCardCount, setDueCardCount] = useState(0);
-  const [flashcardsLoading, setFlashcardsLoading] = useState(true);
-  const [todayReviewCount, setTodayReviewCount] = useState(0);
-  const [islandLoading, setIslandLoading] = useState(true);
-  const [flashcardDecks, setFlashcardDecks] = useState<QuizIslandSummary[]>([]);
-  const [quizStatsByIsland, setQuizStatsByIsland] = useState<
-    Record<string, QuizStatsRow>
-  >({});
-  const [last7DaysActivity, setLast7DaysActivity] = useState<
-    { date: string; count: number }[]
-  >([]);
-  const [totalWordsLearned, setTotalWordsLearned] = useState(0);
-  const [activeJourney, setActiveJourney] = useState<{
-    id: string;
-    topic: string;
-    words_per_week: number | null;
-    completed_at: string | null;
-  } | null>(null);
-  const [activeJourneyNodes, setActiveJourneyNodes] = useState<
-    Array<{
-      id: string;
-      order: number;
-      position: number;
-      node_type: "island" | "story";
-      name: string;
-      hint: string | null;
-      word_count: number | null;
-      completed_at: string | null;
-      island_id: string | null;
-    }>
-  >([]);
-  const [huahuaStage, setHuahuaStage] = useState(1);
-  const [huahuaTotalReviews, setHuahuaTotalReviews] = useState(0);
-  const [firstName, setFirstName] = useState("there");
-  const { isAnonymous, openSignupModal } = useSidebar();
-  const { isPro } = useSubscription();
+  const { mutate: globalMutate } = useSWRConfig();
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
-  const [upgradeFeatureHint, setUpgradeFeatureHint] = useState<string | undefined>(undefined);
-  const islandsScrollRef = useRef<HTMLDivElement | null>(null);
-  const flashcardsScrollRef = useRef<HTMLDivElement | null>(null);
+  const [upgradeFeatureHint, setUpgradeFeatureHint] = useState<
+    string | undefined
+  >(undefined);
+  const previousUserId = useRef(initialCore.userId);
+  const localDate = getLocalDateKey();
+  const tzOffset = new Date().getTimezoneOffset();
+  const coreKey = initialCore.userId
+    ? (["home-core", initialCore.userId, localDate] as const)
+    : null;
+  const statsKey = initialCore.userId
+    ? (["home-stats", initialCore.userId, tzOffset] as const)
+    : null;
+
+  const {
+    data: core,
+    mutate: mutateCore,
+  } = useSWR(
+    coreKey,
+    () => fetchHomeCore(`/api/home/dashboard?date=${localDate}`, initialCore.userId),
+    {
+      fallbackData: initialCore,
+      revalidateOnMount: initialCore.dateKey !== localDate,
+      revalidateIfStale: false,
+      revalidateOnFocus: true,
+      dedupingInterval: 5000,
+    },
+  );
+  const {
+    data: stats,
+    error: statsError,
+    mutate: mutateStats,
+  } = useSWR(
+    statsKey,
+    () => fetchHomeStats(`/api/home/stats?tzOffset=${tzOffset}`, initialCore.userId),
+    {
+      revalidateOnFocus: true,
+      dedupingInterval: 5000,
+    },
+  );
+
+  const dashboard = core ?? initialCore;
+  useEffect(() => {
+    if (initialCore.dateKey !== localDate) return;
+    void mutateCore(initialCore, { revalidate: false });
+  }, [initialCore, localDate, mutateCore]);
 
   useEffect(() => {
-    setDailyStoryLocal(dailyStory);
-  }, [dailyStory]);
+    const pendingRequestStr = localStorage.getItem(STORAGE_KEY);
+    if (pendingRequestStr) {
+      router.replace("/app/topic-islands/loading");
+    }
+  }, [router]);
 
   useEffect(() => {
     const shouldOpenUpgrade = searchParams.get("upgrade") === "1";
@@ -417,324 +464,80 @@ export default function HomeDashboard({
   }, [searchParams, pathname, router]);
 
   useEffect(() => {
-    const pendingRequestStr = localStorage.getItem(STORAGE_KEY);
-    if (pendingRequestStr) {
-      router.replace("/app/topic-islands/loading");
-      return;
+    const previous = previousUserId.current;
+    if (previous && previous !== dashboard.userId) {
+      void globalMutate(
+        (key) =>
+          Array.isArray(key) &&
+          (key[0] === "home-core" || key[0] === "home-stats") &&
+          key[1] === previous,
+        undefined,
+        { revalidate: false },
+      );
     }
-    loadTopicIslands();
-    loadFlashcardsSummary();
-    loadTodayReviewCount();
-    void (async () => {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (!user) return;
-      // Extract first name from user metadata
-      const name =
-        (user.user_metadata?.full_name as string | undefined)?.split(" ")[0] ||
-        (user.user_metadata?.name as string | undefined)?.split(" ")[0] ||
-        user.email?.split("@")[0] ||
-        "there";
-      setFirstName(name);
-      const { count } = await supabase
-        .from("island_words")
-        .select("*", { count: "exact", head: true })
-        .eq("user_id", user.id)
-        .not("learned_at", "is", null);
-      setTotalWordsLearned(count ?? 0);
-      try {
-        const jr = await fetch("/api/journey/active", { cache: "no-store" });
-        if (jr.ok) {
-          const d = await jr.json();
-          setActiveJourney(d.journey);
-          setActiveJourneyNodes(d.nodes ?? d.islands ?? []);
-        }
-      } catch {
-        // Ignore transient network/Fast Refresh failures
-      }
-      await loadHuahuaProgress();
-    })();
-  }, [router, supabase]);
+    previousUserId.current = dashboard.userId;
+  }, [dashboard.userId, globalMutate]);
 
   useEffect(() => {
-    const onRefreshSignals = () => {
-      if (document.visibilityState !== "hidden") {
-        void loadTodayReviewCount();
-        void loadHuahuaProgress();
-      }
+    const refresh = () => {
+      void mutateCore();
+      void mutateStats();
+    };
+    const onVisible = () => {
+      if (document.visibilityState === "visible") refresh();
     };
     const onHuahuaProgressUpdated = (event: Event) => {
-      const detail = (event as CustomEvent<{ totalReviews?: number; stage?: number }>).detail;
-      if (typeof detail?.totalReviews === "number") {
-        setHuahuaTotalReviews(detail.totalReviews);
-      }
-      if (typeof detail?.stage === "number") {
-        setHuahuaStage(detail.stage);
-      }
-      void loadHuahuaProgress();
-    };
-    document.addEventListener("visibilitychange", onRefreshSignals);
-    window.addEventListener("focus", onRefreshSignals);
-    window.addEventListener("huahua-progress-updated", onHuahuaProgressUpdated as EventListener);
-    return () => {
-      document.removeEventListener("visibilitychange", onRefreshSignals);
-      window.removeEventListener("focus", onRefreshSignals);
-      window.removeEventListener("huahua-progress-updated", onHuahuaProgressUpdated as EventListener);
-    };
-  }, []);
-
-  useEffect(() => {
-    if (dailyHasTriedRef.current || dailyStoryLocal) return;
-    dailyHasTriedRef.current = true;
-    const run = async () => {
-      setDailyLoading(true);
-      try {
-        const today = getLocalDateKey();
-        const response = await fetch(`/api/story/daily?date=${today}`, {
-          cache: "no-store",
-        });
-        if (!response.ok) {
-          return;
-        }
-        const data = await response.json();
-        if (data.story) {
-          setDailyStoryLocal(data.story);
-        }
-      } catch (error) {
-        console.error("Error generating daily story:", error);
-      } finally {
-        setDailyLoading(false);
-      }
-    };
-    void run();
-  }, [dailyStoryLocal]);
-
-  const loadTopicIslands = async () => {
-    const { data, error } = await supabase
-      .from("topic_islands")
-      .select("*")
-      .order("created_at", { ascending: false });
-
-    if (error) {
-      console.error("Error loading topic islands:", error);
-    } else {
-      setTopicIslands(data || []);
-    }
-    setLoading(false);
-  };
-
-  const loadHuahuaProgress = async () => {
-    try {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (!user) return;
-
-      const { data: profile, error: profileError } = await supabase
-        .from("user_profiles")
-        .select("huahua_stage, huahua_reviews_today, huahua_last_review_date, huahua_total_reviews")
-        .eq("user_id", user.id)
-        .maybeSingle();
-
-      if (profileError) {
-        // huahua_reviews_today column may not exist yet — fall back to total reviews.
-        const { data: fb } = await supabase
-          .from("user_profiles")
-          .select("huahua_stage, huahua_total_reviews")
-          .eq("user_id", user.id)
-          .maybeSingle();
-        if (fb) {
-          setHuahuaTotalReviews(fb.huahua_total_reviews ?? 0);
-          setHuahuaStage(fb.huahua_stage ?? 1);
-        }
-        return;
-      }
-      if (!profile) return;
-
-      const today = new Date().toISOString().split("T")[0];
-      if (profile.huahua_reviews_today != null) {
-        // Daily-reset columns exist — use them.
-        const isToday = profile.huahua_last_review_date === today;
-        const reviews = isToday ? (profile.huahua_reviews_today ?? 0) : 0;
-        setHuahuaTotalReviews(reviews);
-        setHuahuaStage(isToday ? (profile.huahua_stage ?? 1) : 1);
+      const detail = (
+        event as CustomEvent<{ totalReviews?: number; stage?: number }>
+      ).detail;
+      if (
+        typeof detail?.stage === "number" &&
+        typeof detail.totalReviews === "number"
+      ) {
+        void mutateCore(
+          (current) =>
+            current
+              ? {
+                  ...current,
+                  huahua: { stage: detail.stage!, reviews: detail.totalReviews! },
+                  huahuaStatus: "ready",
+                }
+              : current,
+          { revalidate: true },
+        );
       } else {
-        // Columns not yet in schema — use total reviews.
-        setHuahuaTotalReviews(profile.huahua_total_reviews ?? 0);
-        setHuahuaStage(profile.huahua_stage ?? 1);
+        void mutateCore();
       }
-    } catch (error) {
-      console.error("Error loading huahua progress:", error);
-    }
-  };
-
-  const loadFlashcardsSummary = async () => {
-    try {
-      const [decksResponse, quizResponse] = await Promise.all([
-        fetch("/api/quiz-islands"),
-        fetch("/api/quiz/daily"),
-      ]);
-
-      if (decksResponse.ok) {
-        const decksData = await decksResponse.json();
-        const decks = (decksData.quizIslands || []) as QuizIslandSummary[];
-        setFlashcardDecks(decks);
-        void loadQuizStats(decks);
-      }
-
-      if (quizResponse.ok) {
-        const quizData = await quizResponse.json();
-        const cards: QuizCardSummary[] = quizData.cards || [];
-        const now = Date.now();
-        const dueCount = cards.filter((card) => {
-          const dueAt = card.reviewState?.dueAt;
-          if (!dueAt) return false;
-          return new Date(dueAt).getTime() <= now;
-        }).length;
-        setDueCardCount(dueCount);
-      }
-    } catch (error) {
-      console.error("Error loading flashcards summary:", error);
-    } finally {
-      setFlashcardsLoading(false);
-    }
-  };
-
-  const loadQuizStats = async (islands: QuizIslandSummary[]) => {
-    if (!islands.length) {
-      setQuizStatsByIsland({});
-      return;
-    }
-    try {
-      const results = await Promise.all(
-        islands.map(async (island) => {
-          const first = await supabase.rpc("get_quiz_stats", {
-            quiz_island_id: island.id,
-          } as never);
-          const second =
-            first.error &&
-            (await supabase.rpc("get_quiz_stats", {
-              p_quiz_island_id: island.id,
-            } as never));
-          const data = (second ? second.data : first.data) as unknown;
-          const error = second ? second.error : first.error;
-          if (error) {
-            return [island.id, null] as const;
-          }
-          const row = Array.isArray(data) ? data[0] : data;
-          return [island.id, (row as QuizStatsRow) || null] as const;
-        }),
-      );
-      const next: Record<string, QuizStatsRow> = {};
-      results.forEach(([id, stats]) => {
-        if (stats) next[id] = stats;
-      });
-      setQuizStatsByIsland(next);
-    } catch (error) {
-      console.error("Error loading quiz stats:", error);
-      setQuizStatsByIsland({});
-    }
-  };
-
-  const loadTodayReviewCount = async () => {
-    setIslandLoading(true);
-    try {
-      const tzOffset = new Date().getTimezoneOffset();
-      const now = new Date();
-      const year = now.getFullYear();
-      const month = now.getMonth() + 1;
-      const response = await fetch(
-        `/api/quiz-activity?year=${year}&month=${month}&tzOffset=${tzOffset}`,
-        { cache: "no-store" },
-      );
-      if (!response.ok) {
-        setTodayReviewCount(0);
-        setLast7DaysActivity([]);
-        return;
-      }
-      const data = await response.json();
-      const todayKey = getLocalDateKey();
-      const todayEntry = (data.activity || []).find(
-        (entry: { date: string; count: number }) => entry.date === todayKey,
-      );
-      setTodayReviewCount(todayEntry?.count ?? 0);
-
-      const activityMap = new Map<string, number>();
-      (data.activity || []).forEach(
-        (entry: { date: string; count: number }) => {
-          activityMap.set(entry.date, entry.count);
-        },
-      );
-
-      const last7Days: { date: string; count: number }[] = [];
-      for (let i = 6; i >= 0; i--) {
-        const date = new Date(now);
-        date.setDate(date.getDate() - i);
-        const dateKey = date.toISOString().split("T")[0];
-        last7Days.push({
-          date: dateKey,
-          count: activityMap.get(dateKey) || 0,
-        });
-      }
-      setLast7DaysActivity(last7Days);
-    } catch (error) {
-      console.error("Error loading review count:", error);
-      setTodayReviewCount(0);
-      setLast7DaysActivity([]);
-    } finally {
-      setIslandLoading(false);
-    }
-  };
-
-  // Keep existing memos (data still available even if not rendered)
-  const deckCards = useMemo<FlashcardDeckCard[]>(() => {
-    if (flashcardsLoading) return [];
-    const buildCard = (deck: QuizIslandSummary, index: number): FlashcardDeckCard => {
-      const stats = quizStatsByIsland[deck.id];
-      const dueCount = (stats?.forgot_count ?? 0) + (stats?.hard_count ?? 0);
-      const totalCount = stats?.total_count ?? deck.card_count ?? 0;
-      const progressPercent = Math.min(
-        100,
-        totalCount > 0 ? Math.round(((totalCount - dueCount) / totalCount) * 100) : 0,
-      );
-      const statusLabel =
-        dueCount > 8
-          ? convertText(t("Review"))
-          : dueCount > 4
-            ? convertText(t("Practice"))
-            : convertText(t("New"));
-      return { ...deck, dueCount, totalCount, statusLabel, progressPercent };
+      void mutateStats();
     };
-    return flashcardDecks.map(buildCard);
-  }, [flashcardsLoading, flashcardDecks, quizStatsByIsland, t, convertText]);
+    document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener(
+      "huahua-progress-updated",
+      onHuahuaProgressUpdated as EventListener,
+    );
+    return () => {
+      document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener(
+        "huahua-progress-updated",
+        onHuahuaProgressUpdated as EventListener,
+      );
+    };
+  }, [mutateCore, mutateStats]);
 
-  const streakDays = useMemo(() => {
-    let s = 0;
-    for (let i = last7DaysActivity.length - 1; i >= 0; i--) {
-      if (last7DaysActivity[i].count > 0) s += 1;
-      else break;
-    }
-    return s;
-  }, [last7DaysActivity]);
-
-  // Capybara progress for greeting
-  const safeStage = Math.min(5, Math.max(1, huahuaStage || 1));
-  const nextThreshold = safeStage < 5 ? STAGE_THRESHOLDS[safeStage] : null;
-  const reviewsUntilNext = nextThreshold
-    ? Math.max(0, nextThreshold - huahuaTotalReviews)
-    : 0;
-
-  // Time-based greeting
   const timeGreeting = useMemo(() => {
     const h = new Date().getHours();
     return h < 12 ? "Good morning" : h < 18 ? "Good afternoon" : "Good evening";
   }, []);
 
-  if (loading) {
-    return <AppPageLoading label={convertText(t("Loading..."))} />;
-  }
-
+  const huahuaReady = dashboard.huahuaStatus === "ready" && dashboard.huahua;
+  const safeStage = huahuaReady
+    ? Math.min(5, Math.max(1, dashboard.huahua?.stage || 1))
+    : 1;
+  const reviewCount = huahuaReady ? (dashboard.huahua?.reviews ?? 0) : 0;
+  const nextThreshold = safeStage < 5 ? STAGE_THRESHOLDS[safeStage] : null;
+  const reviewsUntilNext = nextThreshold
+    ? Math.max(0, nextThreshold - reviewCount)
+    : 0;
   const safeStageName = STAGE_NAMES[safeStage - 1];
 
   return (
@@ -745,34 +548,70 @@ export default function HomeDashboard({
         <header className="mb-5 flex flex-wrap items-end justify-between gap-3">
           <div>
             <h1 className="lingo-display text-[30px] leading-tight text-[var(--lingo-navy)] sm:text-[34px]">
-              {timeGreeting}, {firstName}
+              {timeGreeting}, {dashboard.firstName}
             </h1>
-            {!islandLoading && (
+            {huahuaReady ? (
               <p className="mt-1.5 text-[15px] text-[var(--lingo-text-muted)]">
                 {reviewsUntilNext > 0
                   ? `${reviewsUntilNext} more card${reviewsUntilNext !== 1 ? "s" : ""} and 华华 hits Stage ${safeStage + 1}.`
                   : "华华's island is thriving — keep it up."}
               </p>
+            ) : dashboard.huahuaStatus === "error" ? null : (
+              <div className="mt-2 h-5 w-72 max-w-full animate-pulse rounded bg-[var(--lingo-sky-pale)]" />
             )}
           </div>
           <div className="flex flex-wrap items-center gap-2 pb-1">
-            <Chip tone="accent">
-              <Flame className="h-3.5 w-3.5 text-orange-500" aria-hidden />
-              {streakDays} day streak
-            </Chip>
-            <Chip>{totalWordsLearned} words learned</Chip>
-            {dueCardCount > 0 && <Chip>{dueCardCount} due</Chip>}
-            <Chip tone="solid">
-              华华 · Stage {safeStage} · {safeStageName}
-            </Chip>
+            {stats?.streakDays != null ? (
+              <Chip tone="accent">
+                <Flame className="h-3.5 w-3.5 text-orange-500" aria-hidden />
+                {stats.streakDays} day streak
+              </Chip>
+            ) : statsError || stats?.status === "error" ? (
+              <RetryChip onClick={() => void mutateStats()} />
+            ) : (
+              <ChipSkeleton />
+            )}
+            {dashboard.wordsStatus === "ready" && dashboard.wordsLearned != null ? (
+              <Chip>{dashboard.wordsLearned} words learned</Chip>
+            ) : dashboard.wordsStatus === "error" ? (
+              <RetryChip onClick={() => void mutateCore()} />
+            ) : (
+              <ChipSkeleton />
+            )}
+            {stats?.dueCount != null && stats.dueCount > 0 && (
+              <Chip>{stats.dueCount} due</Chip>
+            )}
+            {huahuaReady ? (
+              <Chip tone="solid">
+                华华 · Stage {safeStage} · {safeStageName}
+              </Chip>
+            ) : dashboard.huahuaStatus === "error" ? (
+              <RetryChip onClick={() => void mutateCore()} />
+            ) : (
+              <ChipSkeleton />
+            )}
           </div>
         </header>
 
-        <JourneyHero journey={activeJourney} nodes={activeJourneyNodes} />
+        <JourneyHero
+          journey={dashboard.journey}
+          nodes={dashboard.journeyNodes}
+          status={dashboard.journeyStatus}
+          onRetry={() => void mutateCore()}
+        />
 
         <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-          <CapybaraCard stage={huahuaStage} totalReviews={huahuaTotalReviews} />
-          <HomeDailyStoryCard story={dailyStoryLocal} loading={dailyLoading} />
+          <CapybaraCard
+            stage={dashboard.huahua?.stage ?? null}
+            totalReviews={dashboard.huahua?.reviews ?? null}
+            status={dashboard.huahuaStatus === "ready" ? "ready" : dashboard.huahuaStatus}
+            onRetry={() => void mutateCore()}
+          />
+          <HomeDailyStoryCard
+            story={dashboard.story}
+            status={dashboard.storyStatus}
+            onRetry={() => void mutateCore()}
+          />
           <CreateIslandDashCard />
         </div>
       </div>

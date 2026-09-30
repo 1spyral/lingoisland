@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import { getAuthenticatedUser } from "@/lib/supabase/server";
 import { GlossaryProvider } from "@/contexts/GlossaryContext";
 import { LanguageProvider } from "@/contexts/LanguageContext";
 import { CharacterSetProvider } from "@/contexts/CharacterSetContext";
@@ -25,11 +25,8 @@ export default async function AppLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const supabase = await createClient();
   const h = await headers();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const { user } = await getAuthenticatedUser();
 
   if (!user) {
     const intended = h.get("x-login-next") ?? "/app";

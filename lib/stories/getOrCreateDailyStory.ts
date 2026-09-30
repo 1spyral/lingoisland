@@ -21,6 +21,10 @@ type StoryRow = {
 
 type IslandRow = { id: string; topic: string };
 type WordRow = { id: string; hanzi: string; pinyin: string; english: string };
+type IslandWordRow = WordRow & {
+  island_id: string;
+  learned_at?: string | null;
+};
 
 function getTodayDate() {
   return getLocalDateKey();
@@ -123,13 +127,13 @@ async function generateDailyStory({
 Topic: ${topic}
 Learner level: ${level}${styleGuide}
 Target length: ${lengthChars} Chinese characters (count characters, not tokens)
-Target words (optional to use): ${targetWordList.join(", ")}
+Recently learned words to recall: ${targetWordList.join(", ")}
 
 Story requirements:
 - 5-8 sentences (adjust complexity and length based on ${baseLevel} level)
 - Match the style guidance for ${baseLevel} level
 - Use Simplified Chinese
-- Not all target words need to be used; include only what fits naturally
+- Weave in as many of the recently learned words as you can without sounding forced
 - story_zh must be between ${minLength}-${maxLength} characters
 - If story_zh is too short, add a sentence or detail to reach the minimum
 
@@ -179,7 +183,11 @@ Rules for title and title_en:
           temperature: 0.9,
           frequency_penalty: 0.6,
           presence_penalty: 0.2,
-          max_tokens: 3000,
+          max_tokens: 2200,
+          // V4 Flash thinking is on by default and shares max_tokens with content,
+          // which leaves message.content empty ("No content in DeepSeek response").
+          thinking: { type: "disabled" },
+          response_format: { type: "json_object" },
         }),
       }
     );
@@ -252,7 +260,6 @@ Rules for title and title_en:
 async function selectDailyStoryContext({
   supabaseServerClient,
   userId,
-  date,
 }: {
   supabaseServerClient: SupabaseClient;
   userId: string;
@@ -276,18 +283,32 @@ async function selectDailyStoryContext({
     return null;
   }
 
-  const { data: words, error: wordsError } = await supabaseServerClient
+  const islandIdsForQuery = (islands as IslandRow[]).map((island) => island.id);
+  const withLearned = await supabaseServerClient
     .from("island_words")
-    .select("id, hanzi, pinyin, english, island_id")
-    .in("island_id", (islands as IslandRow[]).map((island) => island.id))
+    .select("id, hanzi, pinyin, english, island_id, learned_at")
+    .in("island_id", islandIdsForQuery)
     .eq("user_id", userId);
+  const wordsResult = withLearned.error
+    ? await supabaseServerClient
+        .from("island_words")
+        .select("id, hanzi, pinyin, english, island_id")
+        .in("island_id", islandIdsForQuery)
+        .eq("user_id", userId)
+    : withLearned;
 
-  if (wordsError || !words || words.length === 0) {
+  if (wordsResult.error || !wordsResult.data || wordsResult.data.length === 0) {
     return null;
   }
 
-  const wordsByIsland = new Map<string, WordRow[]>();
-  for (const word of words as (WordRow & { island_id: string })[]) {
+  const words = wordsResult.data as IslandWordRow[];
+  const learnedAtMs = (word: IslandWordRow) => {
+    if (!word.learned_at) return 0;
+    const parsed = Date.parse(word.learned_at);
+    return Number.isNaN(parsed) ? 0 : parsed;
+  };
+  const wordsByIsland = new Map<string, IslandWordRow[]>();
+  for (const word of words) {
     if (!wordsByIsland.has(word.island_id)) {
       wordsByIsland.set(word.island_id, []);
     }
@@ -302,19 +323,40 @@ async function selectDailyStoryContext({
     return null;
   }
 
+  const learnedCountByIsland = new Map<string, number>();
+  for (const word of words) {
+    if (!word.learned_at) continue;
+    learnedCountByIsland.set(
+      word.island_id,
+      (learnedCountByIsland.get(word.island_id) ?? 0) + 1
+    );
+  }
+
+  const rankedIslands = [...eligibleIslands].sort((a, b) => {
+    const learnedDiff =
+      (learnedCountByIsland.get(b.id) ?? 0) -
+      (learnedCountByIsland.get(a.id) ?? 0);
+    if (learnedDiff !== 0) return learnedDiff;
+    return 0;
+  });
+  const hasLearnedWords = rankedIslands.some(
+    (island) => (learnedCountByIsland.get(island.id) ?? 0) > 0
+  );
   const islandCount = eligibleIslands.length >= 2 ? 2 : 1;
-  const selectedIslands = sample(eligibleIslands, islandCount);
+  const selectedIslands = hasLearnedWords
+    ? rankedIslands.slice(0, islandCount)
+    : sample(eligibleIslands, islandCount);
   const islandIds = selectedIslands.map((island) => island.id);
 
-  const selectedIslandWords = selectedIslands.flatMap(
-    (island) => wordsByIsland.get(island.id) || []
-  );
+  const selectedIslandWords = selectedIslands
+    .flatMap((island) => wordsByIsland.get(island.id) || [])
+    .sort((a, b) => learnedAtMs(b) - learnedAtMs(a));
 
-  const targetCount = Math.min(14, Math.max(10, 12));
+  const targetCount = 12;
   const selectedWords =
     selectedIslandWords.length <= targetCount
       ? selectedIslandWords
-      : sample(selectedIslandWords, targetCount);
+      : selectedIslandWords.slice(0, targetCount);
 
   const lengthChars = 140 + Math.floor(Math.random() * 40);
   const storyTopic =
@@ -327,6 +369,24 @@ async function selectDailyStoryContext({
     storyTopic,
     lengthChars,
   };
+}
+
+async function findDailyStory(
+  supabaseServerClient: SupabaseClient,
+  userId: string,
+  targetDate: string,
+) {
+  const { data } = await supabaseServerClient
+    .from("stories")
+    .select("*")
+    .eq("user_id", userId)
+    .eq("kind", "daily")
+    .eq("date", targetDate)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  return (data as StoryRow | null) ?? null;
 }
 
 export async function getOrCreateDailyStory({
@@ -354,16 +414,10 @@ export async function getOrCreateDailyStory({
     .eq("saved", false)
     .lt("date", targetDate);
 
-  const { data: existing } = await supabaseServerClient
-    .from("stories")
-    .select("*")
-    .eq("user_id", user.id)
-    .eq("kind", "daily")
-    .eq("date", targetDate)
-    .maybeSingle();
+  const existing = await findDailyStory(supabaseServerClient, user.id, targetDate);
 
   if (existing) {
-    return existing as StoryRow;
+    return existing;
   }
   const context = await selectDailyStoryContext({
     supabaseServerClient,
@@ -375,53 +429,56 @@ export async function getOrCreateDailyStory({
     return null;
   }
 
+  let generated: Awaited<ReturnType<typeof generateDailyStory>>;
   try {
-    const generated = await generateDailyStory({
+    generated = await generateDailyStory({
       topic: context.storyTopic,
       level: context.level,
       lengthChars: context.lengthChars,
       targetWords: context.selectedWords,
       sourceIslandIds: context.islandIds,
     });
-
-    const { data: inserted, error: insertError } = await supabaseServerClient
-      .from("stories")
-      .insert({
-        user_id: user.id,
-        kind: "daily",
-        date: targetDate,
-        title: generated.title,
-        title_en: generated.title_en,
-        level: context.level,
-        length_chars: context.lengthChars,
-        topic: context.storyTopic,
-        story_zh: generated.story_zh,
-        story_en: generated.story_en,
-        story_pinyin: generated.story_pinyin,
-        source_island_ids: context.islandIds,
-        target_word_ids: context.selectedWords.map((word) => word.id),
-        requested_words: [],
-        saved: false,
-      })
-      .select()
-      .single();
-
-    if (insertError) {
-      const { data: fallback } = await supabaseServerClient
-        .from("stories")
-        .select("*")
-        .eq("user_id", user.id)
-        .eq("kind", "daily")
-        .eq("date", targetDate)
-        .maybeSingle();
-
-      return (fallback as StoryRow) || null;
-    }
-
-    return inserted as StoryRow;
   } catch (error) {
-    console.error("Daily story generation failed:", error);
-    return null;
+    const createdMeanwhile = await findDailyStory(
+      supabaseServerClient,
+      user.id,
+      targetDate,
+    );
+    if (createdMeanwhile) return createdMeanwhile;
+    throw error;
   }
+
+  const { data: inserted, error: insertError } = await supabaseServerClient
+    .from("stories")
+    .insert({
+      user_id: user.id,
+      kind: "daily",
+      date: targetDate,
+      title: generated.title,
+      title_en: generated.title_en,
+      level: context.level,
+      length_chars: context.lengthChars,
+      topic: context.storyTopic,
+      story_zh: generated.story_zh,
+      story_en: generated.story_en,
+      story_pinyin: generated.story_pinyin,
+      source_island_ids: context.islandIds,
+      target_word_ids: context.selectedWords.map((word) => word.id),
+      requested_words: [],
+      saved: false,
+    })
+    .select()
+    .single();
+
+  if (insertError) {
+    const fallback = await findDailyStory(supabaseServerClient, user.id, targetDate);
+
+    if (fallback) {
+      return fallback;
+    }
+    throw insertError;
+  }
+
+  return inserted as StoryRow;
 }
 

@@ -172,6 +172,11 @@ REMEMBER: Count story_zh characters (excluding spaces/punctuation) = ${minLength
           frequency_penalty: 0.5,
           presence_penalty: 0.3,
           max_tokens: 2200,
+          // V4 Flash thinking is on by default and shares max_tokens with the
+          // reply. Reasoning can consume the whole budget and leave
+          // message.content empty.
+          thinking: { type: "disabled" },
+          response_format: { type: "json_object" },
         }),
       }
     );

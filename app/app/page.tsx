@@ -1,5 +1,9 @@
 import HomeDashboard from "@/components/app/HomeDashboard";
+import { loadHomeCore } from "@/lib/home/loadHomeDashboard";
 
-export default function AppPage() {
-  return <HomeDashboard dailyStory={null} />;
+export const dynamic = "force-dynamic";
+
+export default async function AppPage() {
+  const initialCore = await loadHomeCore();
+  return <HomeDashboard initialCore={initialCore} />;
 }

@@ -25,7 +25,7 @@ export async function GET(request: Request) {
       return NextResponse.json(
         {
           error:
-            "Failed to generate daily story. Ensure you have a topic island with generated words.",
+            "Daily stories need vocabulary from your topic islands. Create an island and generate words first.",
         },
         { status: 400 }
       );
@@ -35,8 +35,11 @@ export async function GET(request: Request) {
   } catch (error) {
     console.error("Error in GET /api/story/daily:", error);
     return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
+      {
+        error:
+          "We couldn't generate today's story. Please try again in a moment.",
+      },
+      { status: 502 }
     );
   }
 }

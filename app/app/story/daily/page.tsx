@@ -18,7 +18,6 @@ export default function DailyStoryPreviewPage() {
   const { t } = useLanguage();
   const { convertText } = useCharacterSet();
   const router = useRouter();
-  const supabase = createClient();
   const { completeNudge } = useOnboarding();
   const [story, setStory] = useState<StoryDetail | null>(null);
   const [targetWords, setTargetWords] = useState<StoryTargetWord[]>([]);
@@ -29,6 +28,9 @@ export default function DailyStoryPreviewPage() {
   const today = getLocalDateKey();
 
   useEffect(() => {
+    let active = true;
+    const supabase = createClient();
+
     const loadPreview = async () => {
       setLoading(true);
       setError(null);
@@ -36,6 +38,7 @@ export default function DailyStoryPreviewPage() {
         const response = await fetch(`/api/story/daily?date=${today}`, {
           cache: "no-store",
         });
+        if (!active) return;
         if (!response.ok) {
           const errorData = await response.json().catch(() => ({}));
           throw new Error(
@@ -44,8 +47,10 @@ export default function DailyStoryPreviewPage() {
         }
 
         const data = await response.json();
+        if (!active) return;
         const stored = data.story as StoryDetail;
         setStory(stored);
+        setError(null);
 
         if (stored.target_word_ids && stored.target_word_ids.length > 0) {
           const { data: wordsData, error: wordsError } = await supabase
@@ -53,6 +58,7 @@ export default function DailyStoryPreviewPage() {
             .select("id, hanzi, pinyin, english, island_id")
             .in("id", stored.target_word_ids);
 
+          if (!active) return;
           if (!wordsError && wordsData) {
             const orderMap = new Map(
               stored.target_word_ids.map((id, idx) => [id, idx])
@@ -67,14 +73,18 @@ export default function DailyStoryPreviewPage() {
           setTargetWords([]);
         }
       } catch (err) {
+        if (!active) return;
         setError(err instanceof Error ? err.message : "Failed to load story");
       } finally {
-        setLoading(false);
+        if (active) setLoading(false);
       }
     };
 
     loadPreview();
-  }, [supabase, today]);
+    return () => {
+      active = false;
+    };
+  }, [today]);
 
   const handleSaveDaily = async () => {
     setSaving(true);
@@ -114,7 +124,12 @@ export default function DailyStoryPreviewPage() {
       <div className="flex min-h-screen items-center justify-center px-4">
         <div className="max-w-md text-center">
           <div className="mb-4 text-gray-600">
-            {error || convertText(t("Daily stories need vocabulary from your topic islands!"))}
+            {convertText(
+              t(
+                error ||
+                  "Daily stories need vocabulary from your topic islands!"
+              )
+            )}
           </div>
           {error?.includes("topic island") && (
             <div className="mt-6">

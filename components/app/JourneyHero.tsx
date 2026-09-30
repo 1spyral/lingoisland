@@ -13,9 +13,13 @@ import {
 export default function JourneyHero({
   journey,
   nodes,
+  status = journey ? "ready" : "empty",
+  onRetry,
 }: {
   journey: { id: string; topic: string } | null;
   nodes: JourneyNode[];
+  status?: "ready" | "empty" | "error" | "loading";
+  onRetry?: () => void;
 }) {
   const router = useRouter();
 
@@ -39,6 +43,39 @@ export default function JourneyHero({
     0,
   );
   const totalWords = islands.reduce((sum, n) => sum + getIslandWordCount(n), 0);
+
+  if (status === "loading" || status === "error") {
+    return (
+      <section
+        className="mb-5 rounded-2xl bg-white p-6 sm:p-7"
+        style={{ border: HSK_CARD_BORDER, boxShadow: HSK_CARD_SHADOW }}
+      >
+        <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-[var(--lingo-teal)]">
+          Active journey
+        </p>
+        {status === "loading" ? (
+          <div className="mt-3 space-y-3">
+            <div className="h-8 w-56 animate-pulse rounded-lg bg-[var(--lingo-sky-pale)]" />
+            <div className="h-4 w-72 max-w-full animate-pulse rounded bg-[var(--lingo-sky-pale)]" />
+            <div className="h-10 w-full animate-pulse rounded-full bg-[var(--lingo-sky-pale)]" />
+          </div>
+        ) : (
+          <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
+            <p className="text-sm text-[var(--lingo-text-muted)]">
+              Couldn&apos;t load your journey.
+            </p>
+            <button
+              type="button"
+              onClick={onRetry}
+              className="text-sm font-bold text-[var(--lingo-blue)]"
+            >
+              Retry
+            </button>
+          </div>
+        )}
+      </section>
+    );
+  }
 
   if (!journey) {
     return (
