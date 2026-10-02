@@ -70,81 +70,91 @@ Output ONLY valid JSON (no markdown, no code blocks, no explanation). Format:
 
 CRITICAL: The "words" array MUST contain EXACTLY ${wordCount} items.`
 
-  const response = await fetch('https://api.deepseek.com/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify({
-      model: 'deepseek-v4-flash',
-      messages: [
-        {
-          role: 'system',
-          content:
-            'You are a helpful assistant that generates structured JSON data for Chinese language learning. Always respond with valid JSON only, no markdown formatting.',
-        },
-        {
-          role: 'user',
-          content: prompt,
-        },
-      ],
-      temperature: 0.3, // Lower temperature for faster, more deterministic results
-      max_tokens: 800, // Smaller token limit since we're only generating words
-    }),
-  })
+  let parsed: WordListResponse | null = null
+  let lastError: Error | null = null
 
-  if (!response.ok) {
-    const errorText = await response.text()
-    throw new Error(
-      `DeepSeek API error: ${response.status} ${response.statusText} - ${errorText}`
-    )
-  }
+  // V4 Flash thinking is on by default and shares max_tokens with the JSON
+  // body. A short budget gets cut off mid-string ("Unterminated string"),
+  // which fails island creation on the first try and succeeds on a retry.
+  for (let attempt = 1; attempt <= 2; attempt += 1) {
+    const response = await fetch('https://api.deepseek.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model: 'deepseek-v4-flash',
+        messages: [
+          {
+            role: 'system',
+            content:
+              'You are a helpful assistant that generates structured JSON data for Chinese language learning. Always respond with valid JSON only, no markdown formatting.',
+          },
+          {
+            role: 'user',
+            content: prompt,
+          },
+        ],
+        temperature: 0.3,
+        max_tokens: 2000,
+        thinking: { type: 'disabled' },
+        response_format: { type: 'json_object' },
+      }),
+    })
 
-  const data = await response.json()
-  const content = data.choices[0]?.message?.content
-
-  if (!content) {
-    throw new Error('No content in DeepSeek response')
-  }
-
-  // Parse JSON response (handle markdown code blocks if present)
-  let jsonContent = content.trim()
-  if (jsonContent.startsWith('```')) {
-    // Remove markdown code block wrapper
-    jsonContent = jsonContent.replace(/^```(?:json)?\n/, '').replace(/\n```$/, '')
-  }
-
-  let parsed: WordListResponse
-  try {
-    parsed = JSON.parse(jsonContent)
-  } catch (error) {
-    throw new Error(
-      `Failed to parse DeepSeek response as JSON: ${error}. Content: ${jsonContent.substring(0, 200)}`
-    )
-  }
-
-  // Validate response structure
-  if (!parsed.words || !Array.isArray(parsed.words)) {
-    throw new Error('Invalid response format: missing words array')
-  }
-
-  // Validate each word
-  for (const word of parsed.words) {
-    if (!word.hanzi || !word.pinyin || !word.english) {
-      throw new Error(`Invalid word structure: ${JSON.stringify(word)}`)
+    if (!response.ok) {
+      const errorText = await response.text()
+      throw new Error(
+        `DeepSeek API error: ${response.status} ${response.statusText} - ${errorText}`
+      )
     }
 
-    // Check for duplicates in the response
-    const duplicates = parsed.words.filter((w) => w.hanzi === word.hanzi)
-    if (duplicates.length > 1) {
-      throw new Error(`Duplicate word in response: ${word.hanzi}`)
+    const data = await response.json()
+    const content = data.choices[0]?.message?.content
+    const finishReason = data.choices[0]?.finish_reason
+
+    if (!content) {
+      lastError = new Error(
+        `No content in DeepSeek response (finish_reason: ${finishReason ?? 'unknown'})`
+      )
+      continue
     }
 
-    // Check against existing words
-    if (existingWords.includes(word.hanzi)) {
-      throw new Error(`Generated word already exists: ${word.hanzi}`)
+    let jsonContent = content.trim()
+    if (jsonContent.startsWith('```')) {
+      jsonContent = jsonContent.replace(/^```(?:json)?\n/, '').replace(/\n```$/, '')
     }
+
+    try {
+      const candidate = JSON.parse(jsonContent) as WordListResponse
+      if (!candidate.words || !Array.isArray(candidate.words) || candidate.words.length === 0) {
+        throw new Error('Invalid response format: missing words array')
+      }
+      for (const word of candidate.words) {
+        if (!word.hanzi || !word.pinyin || !word.english) {
+          throw new Error(`Invalid word structure: ${JSON.stringify(word)}`)
+        }
+        const duplicates = candidate.words.filter((w) => w.hanzi === word.hanzi)
+        if (duplicates.length > 1) {
+          throw new Error(`Duplicate word in response: ${word.hanzi}`)
+        }
+        if (existingWords.includes(word.hanzi)) {
+          throw new Error(`Generated word already exists: ${word.hanzi}`)
+        }
+      }
+      parsed = candidate
+      break
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : String(error)
+      lastError = new Error(
+        `${detail} (finish_reason: ${finishReason ?? 'unknown'}, content: ${jsonContent.substring(0, 160)})`
+      )
+    }
+  }
+
+  if (!parsed) {
+    throw lastError ?? new Error('Failed to generate word list')
   }
 
   // Ensure we have the right count (allow slight variance but warn)

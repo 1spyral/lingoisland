@@ -183,38 +183,9 @@ export default function TopicIslandsPage() {
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
 
   const didHydrateFromQuery = useRef(false);
-  const topicFromQueryParams = useRef<string | null>(null);
-
-  // Handle query params for modal control - SINGLE EFFECT
-  useEffect(() => {
-    const createParam = searchParams.get("create");
-    const topicParam = searchParams.get("topic");
-
-    if (createParam === "1") {
-      if (!didHydrateFromQuery.current && topicParam) {
-        const decodedTopic = decodeURIComponent(topicParam);
-        topicFromQueryParams.current = decodedTopic;
-
-        setFormData({
-          topic: decodedTopic,
-          level: userDefaultLevel || "B1",
-          wordTarget: 12,
-          grammarTarget: 0,
-          wantsGrammar: false,
-          sentenceStyle: "casual",
-          includeReviewVocab: false,
-          reviewVocabMode: "random",
-          selectedReviewIslands: [],
-        });
-
-        didHydrateFromQuery.current = true;
-      }
-
-      if (!showCreateModal) {
-        setShowCreateModal(true);
-      }
-    }
-  }, [searchParams, userDefaultLevel, showCreateModal]);
+  // Set when the user dismisses the modal while ?create=1 is still in the URL.
+  // The open effect would otherwise see the stale query and pop the modal back open.
+  const ignoreCreateQuery = useRef(false);
 
   useEffect(() => {
     if (subscriptionLoading) return;
@@ -225,11 +196,30 @@ export default function TopicIslandsPage() {
   useEffect(() => {
     loadIslands();
     loadUserProfile();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  if (!subscriptionLoading && !isPro) {
-    return null;
-  }
+  useEffect(() => {
+    const createParam = searchParams.get("create");
+    if (createParam !== "1") {
+      ignoreCreateQuery.current = false;
+      return;
+    }
+    if (ignoreCreateQuery.current) return;
+
+    const topicParam = searchParams.get("topic");
+    if (!didHydrateFromQuery.current) {
+      const decodedTopic = topicParam ? decodeURIComponent(topicParam) : "";
+      setFormData((prev) => ({
+        ...prev,
+        topic: decodedTopic || prev.topic,
+        level: prev.level === "B1" ? userDefaultLevel || "B1" : prev.level,
+      }));
+      didHydrateFromQuery.current = true;
+    }
+
+    setShowCreateModal(true);
+  }, [searchParams, userDefaultLevel]);
 
   async function loadUserProfile() {
     try {
@@ -249,28 +239,33 @@ export default function TopicIslandsPage() {
     }
   }
 
-  // Handle modal open/close and form reset
-  useEffect(() => {
-    if (!showCreateModal) {
-      setFormData({
-        topic: "",
-        level: userDefaultLevel,
-        wordTarget: 12,
-        grammarTarget: 0,
-        wantsGrammar: false,
-        sentenceStyle: "casual",
-        includeReviewVocab: false,
-        reviewVocabMode: "random",
-        selectedReviewIslands: [],
-      });
-      didHydrateFromQuery.current = false;
-      topicFromQueryParams.current = null;
+  function resetCreateForm() {
+    setFormData({
+      topic: "",
+      level: userDefaultLevel,
+      wordTarget: 12,
+      grammarTarget: 0,
+      wantsGrammar: false,
+      sentenceStyle: "casual",
+      includeReviewVocab: false,
+      reviewVocabMode: "random",
+      selectedReviewIslands: [],
+    });
+    didHydrateFromQuery.current = false;
+  }
 
-      if (searchParams.get("create") || searchParams.get("topic")) {
-        router.replace(pathname, { scroll: false });
-      }
+  function closeCreateModal() {
+    setShowCreateModal(false);
+    resetCreateForm();
+    if (searchParams.get("create") || searchParams.get("topic")) {
+      ignoreCreateQuery.current = true;
+      router.replace(pathname, { scroll: false });
     }
-  }, [showCreateModal, userDefaultLevel, pathname, router, searchParams]);
+  }
+
+  if (!subscriptionLoading && !isPro) {
+    return null;
+  }
 
   async function loadIslands() {
     const {
@@ -313,7 +308,7 @@ export default function TopicIslandsPage() {
         const errorData = await response.json().catch(() => ({}));
 
         if (errorData.code === "PAYWALL_ISLAND_LIMIT") {
-          setShowCreateModal(false);
+          closeCreateModal();
           setShowUpgradeModal(true);
           setCreating(false);
           return;
@@ -489,9 +484,10 @@ export default function TopicIslandsPage() {
                   <input
                     type="text"
                     value={formData.topic}
-                    onChange={(e) =>
-                      setFormData({ ...formData, topic: e.target.value })
-                    }
+                    onChange={(e) => {
+                      const topic = e.target.value;
+                      setFormData((prev) => ({ ...prev, topic }));
+                    }}
                     placeholder={t("e.g., Cooking, Travel, Business")}
                     className="w-full rounded-xl border bg-white px-4 py-2.5 text-[var(--lingo-text)] focus:border-[var(--lingo-blue)] focus:outline-none"
                     style={{ borderColor: "var(--lingo-border)" }}
@@ -505,9 +501,10 @@ export default function TopicIslandsPage() {
                   </label>
                   <select
                     value={formData.level}
-                    onChange={(e) =>
-                      setFormData({ ...formData, level: e.target.value })
-                    }
+                    onChange={(e) => {
+                      const level = e.target.value;
+                      setFormData((prev) => ({ ...prev, level }));
+                    }}
                     className="w-full rounded-xl border bg-white px-4 py-2.5 text-[var(--lingo-text)] focus:border-[var(--lingo-blue)] focus:outline-none"
                     style={{ borderColor: "var(--lingo-border)" }}
                   >
@@ -528,12 +525,10 @@ export default function TopicIslandsPage() {
                     min="10"
                     max="20"
                     value={formData.wordTarget}
-                    onChange={(e) =>
-                      setFormData({
-                        ...formData,
-                        wordTarget: parseInt(e.target.value),
-                      })
-                    }
+                    onChange={(e) => {
+                      const wordTarget = parseInt(e.target.value, 10);
+                      setFormData((prev) => ({ ...prev, wordTarget }));
+                    }}
                     className="w-full"
                   />
                   <div className="mt-1 flex justify-between text-xs text-[var(--lingo-text-muted)]">
@@ -811,7 +806,7 @@ export default function TopicIslandsPage() {
                 <div className="flex gap-3">
                   <button
                     type="button"
-                    onClick={() => setShowCreateModal(false)}
+                    onClick={closeCreateModal}
                     className="flex-1 rounded-2xl border bg-white px-4 py-2.5 text-sm font-semibold text-[var(--lingo-navy)] transition-colors hover:bg-[var(--lingo-sky-pale)]"
                     style={{ borderColor: "var(--lingo-border)" }}
                     disabled={creating}

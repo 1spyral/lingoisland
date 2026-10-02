@@ -112,6 +112,12 @@
   100% { transform: translateY(0px); }
 }
 
+@keyframes islandBobble {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  30%      { transform: translateY(-7px) rotate(-0.7deg); }
+  60%      { transform: translateY(-3px) rotate(0.6deg); }
+}
+
 @keyframes gentleFloat {
   0%, 100% { transform: translateY(0px); }
   50%      { transform: translateY(-6px); }
@@ -139,7 +145,7 @@
 
 @media (prefers-reduced-motion: reduce) {
   .lingo-float, .lingo-float-slow, .lingo-float-fast, .lingo-sparkle,
-  .island-float, .hero-wave-svg {
+  .island-float, .island-bobble, .hero-wave-svg {
     animation: none !important;
   }
 }
@@ -163,6 +169,10 @@
 
 .island-float {
   animation: islandFloat 5s ease-in-out infinite;
+}
+
+.island-bobble {
+  animation: islandBobble 4.8s ease-in-out infinite;
 }
 
 /* ── Wave drift ─────────────────────────────────────── */
