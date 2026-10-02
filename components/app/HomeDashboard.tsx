@@ -20,7 +20,7 @@ import {
   HSK_CARD_SHADOW_HOVER,
 } from "@/lib/glossy-theme";
 import type { HomeCore, HomeStats, HomeStory } from "@/lib/home/loadHomeDashboard";
-import { ArrowRight, Flame, Layers, Plus } from "lucide-react";
+import { ArrowRight, Flame, Layers } from "lucide-react";
 
 const STORAGE_KEY = "pending_topic_island_request";
 
@@ -87,7 +87,7 @@ function DashCardShell({
   return (
     <div
       id={id}
-      className={`group flex min-h-[320px] flex-col overflow-hidden rounded-2xl bg-white transition-all hover:-translate-y-0.5 ${className}`}
+      className={`group flex h-full min-h-[320px] flex-col overflow-hidden rounded-2xl bg-white transition-all hover:-translate-y-0.5 ${className}`}
       style={{ border: HSK_CARD_BORDER, boxShadow: HSK_CARD_SHADOW }}
       onMouseEnter={(e) => {
         e.currentTarget.style.boxShadow = HSK_CARD_SHADOW_HOVER;
@@ -97,6 +97,20 @@ function DashCardShell({
       }}
     >
       {children}
+    </div>
+  );
+}
+
+function CardArt({ src, alt }: { src: string; alt: string }) {
+  return (
+    <div className="relative h-[200px] overflow-hidden bg-[var(--lingo-sky-pale)] sm:h-[220px]">
+      <Image
+        src={src}
+        alt={alt}
+        fill
+        className="object-cover object-center"
+        sizes="(max-width: 768px) 100vw, 380px"
+      />
     </div>
   );
 }
@@ -133,7 +147,7 @@ function CapybaraCard({
     <DashCardShell id="progress-island-card">
       <div className="flex h-[200px] items-center justify-center bg-[var(--lingo-sky-pale)] px-2 sm:h-[220px]">
         {ready ? (
-          <div className="relative h-full w-full">
+          <div className="island-bobble relative h-full w-full">
             <Image
               src={islandSrc}
               alt={`华华's island — Stage ${safeStage}`}
@@ -219,9 +233,7 @@ function HomeDailyStoryCard({
   if (status === "loading" || status === "error") {
     return (
       <DashCardShell>
-        <div className="flex h-[200px] items-center justify-center bg-[var(--lingo-sky-pale)] sm:h-[220px]">
-          <div className="h-14 w-14 animate-pulse rounded-2xl bg-white" />
-        </div>
+        <CardArt src="/home/capybara-reading-island.png" alt="" />
         <div className="flex flex-1 flex-col p-5 sm:p-6">
           <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-[var(--lingo-teal)]">
             {convertText(t("Daily Story"))}
@@ -246,11 +258,10 @@ function HomeDailyStoryCard({
     return (
       <Link href="/app/story/daily" className="block h-full">
         <DashCardShell>
-          <div className="flex h-[200px] flex-col items-center justify-center bg-[var(--lingo-sky-pale)] sm:h-[220px]">
-            <span className="inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-white text-2xl shadow-sm">
-              📖
-            </span>
-          </div>
+          <CardArt
+            src="/home/capybara-reading-island.png"
+            alt="华华 reading on a floating island"
+          />
           <div className="flex flex-1 flex-col p-5 sm:p-6">
             <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-[var(--lingo-teal)]">
               {convertText(t("Daily Story"))}
@@ -265,7 +276,7 @@ function HomeDailyStoryCard({
                 )
               )}
             </p>
-            <span className="mt-4 inline-flex items-center gap-1 text-sm font-bold text-[var(--lingo-blue)] transition-colors group-hover:text-[var(--lingo-navy)]">
+            <span className="mt-auto inline-flex items-center gap-1 pt-5 text-sm font-bold text-[var(--lingo-blue)] transition-colors group-hover:text-[var(--lingo-navy)]">
               {convertText(t("Read story"))}{" "}
               <ArrowRight className="h-3.5 w-3.5" aria-hidden />
             </span>
@@ -289,30 +300,32 @@ function HomeDailyStoryCard({
 
   return (
     <DashCardShell>
-      <div className="flex h-[200px] flex-col justify-end bg-[var(--lingo-sky-pale)] p-5 sm:h-[220px] sm:p-6">
+      <CardArt
+        src="/home/capybara-reading-island.png"
+        alt={title ? `${title} illustration` : "Today's story illustration"}
+      />
+      <div className="flex flex-1 flex-col p-5 sm:p-6">
         <div className="mb-2 flex flex-wrap items-center gap-2">
+          <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-[var(--lingo-teal)]">
+            {convertText(t("Daily Story · Today"))}
+          </p>
           {level && (
-            <span className="rounded-full border border-[var(--lingo-accent-border)] bg-white/80 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[var(--lingo-navy)]">
+            <span className="rounded-full border border-[var(--lingo-accent-border)] bg-[var(--lingo-sky-pale)] px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[var(--lingo-navy)]">
               {hskLabelForCefr(level)}
             </span>
           )}
-          <span className="rounded-full border border-[var(--lingo-accent-border)] bg-white/80 px-2.5 py-0.5 text-[10px] font-semibold text-[var(--lingo-text-muted)]">
+          <span className="rounded-full border border-[var(--lingo-accent-border)] bg-[var(--lingo-sky-pale)] px-2 py-0.5 text-[10px] font-semibold text-[var(--lingo-text-muted)]">
             ~{readMins} min
           </span>
         </div>
-        <p className="lingo-display line-clamp-2 text-xl leading-tight text-[var(--lingo-navy)]">
+        <h3 className="lingo-display line-clamp-2 text-lg text-[var(--lingo-navy)]">
           {title ?? "今日故事"}
-        </p>
+        </h3>
         {titleEn && (
           <p className="mt-1 line-clamp-1 text-sm text-[var(--lingo-text-muted)]">
             {titleEn}
           </p>
         )}
-      </div>
-      <div className="flex flex-1 flex-col p-5 sm:p-6">
-        <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-[var(--lingo-teal)]">
-          {convertText(t("Daily Story · Today"))}
-        </p>
         {excerpt && (
           <p className="mt-2 line-clamp-3 flex-1 text-sm leading-relaxed text-[var(--lingo-text-muted)]">
             {excerpt}
@@ -320,7 +333,7 @@ function HomeDailyStoryCard({
         )}
         <Link
           href={storyId ? `/app/story/${storyId}` : "/app/story/daily"}
-          className="mt-4 inline-flex items-center gap-1 text-sm font-bold text-[var(--lingo-blue)] transition-colors group-hover:text-[var(--lingo-navy)]"
+          className="mt-auto inline-flex items-center gap-1 pt-5 text-sm font-bold text-[var(--lingo-blue)] transition-colors group-hover:text-[var(--lingo-navy)]"
         >
           {convertText(t("Read story"))}{" "}
           <ArrowRight className="h-3.5 w-3.5" aria-hidden />
@@ -333,14 +346,10 @@ function HomeDailyStoryCard({
 function CreateIslandDashCard() {
   return (
     <DashCardShell>
-      <div className="flex h-[200px] flex-col items-center justify-center bg-[var(--lingo-sky-pale)] sm:h-[220px]">
-        <span className="inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-white text-[var(--lingo-blue)] shadow-sm">
-          <Plus className="h-7 w-7" strokeWidth={2.2} aria-hidden />
-        </span>
-        <p className="mt-3 text-sm font-semibold text-[var(--lingo-text-muted)]">
-          New island
-        </p>
-      </div>
+      <CardArt
+        src="/home/capybara-explorer-new-island.png"
+        alt="华华 exploring a new floating island"
+      />
       <div className="flex flex-1 flex-col p-5 sm:p-6">
         <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-[var(--lingo-teal)]">
           Topic Islands
@@ -351,7 +360,7 @@ function CreateIslandDashCard() {
         <p className="mt-1.5 flex-1 text-sm leading-relaxed text-[var(--lingo-text-muted)]">
           Pick any topic and get vocab + examples tailored to your level.
         </p>
-        <div className="mt-4 flex flex-col gap-2">
+        <div className="mt-auto flex flex-col gap-2 pt-5">
           <Link
             href="/app/topic-islands?create=1"
             className="inline-flex items-center gap-1 text-sm font-bold text-[var(--lingo-blue)] transition-colors hover:text-[var(--lingo-navy)]"
@@ -600,7 +609,7 @@ export default function HomeDashboard({
           onRetry={() => void mutateCore()}
         />
 
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+        <div className="grid grid-cols-1 items-stretch gap-4 md:grid-cols-3">
           <CapybaraCard
             stage={dashboard.huahua?.stage ?? null}
             totalReviews={dashboard.huahua?.reviews ?? null}

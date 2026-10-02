@@ -54,24 +54,32 @@ export default function PrepareIslandLessonPage() {
     } catch {
       reviewVocab = undefined;
     }
-    const response = await fetch(`/api/topic-islands/${islandId}/generate-batch`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        sentenceStyle: searchParams.get("sentenceStyle") ?? undefined,
-        reviewVocab,
-      }),
-    });
-    if (!response.ok && response.status !== 409) {
+    let lastError = "";
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      const response = await fetch(`/api/topic-islands/${islandId}/generate-batch`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          sentenceStyle: searchParams.get("sentenceStyle") ?? undefined,
+          reviewVocab,
+        }),
+      });
+      if (response.ok || response.status === 409) {
+        lastError = "";
+        break;
+      }
       const result = await response.json().catch(() => ({}));
-      setError(
+      lastError =
         typeof result.error === "string"
           ? result.error
-          : t("We couldn't finish the example sentences."),
-      );
+          : t("We couldn't finish the example sentences.");
+      if (attempt === 0) {
+        await new Promise((resolve) => window.setTimeout(resolve, 600));
+      }
     }
+    if (lastError) setError(lastError);
     await load();
-  }, [islandId, load, searchParams]);
+  }, [islandId, load, searchParams, t]);
 
   useEffect(() => {
     void load();

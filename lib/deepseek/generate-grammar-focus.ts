@@ -234,7 +234,11 @@ CRITICAL REQUIREMENTS:
           },
         ],
         temperature: 1.0, // Balanced randomness
-        max_tokens: 2000,
+        max_tokens: 2500,
+        // Same V4 Flash issue as word-list generation: thinking shares the
+        // token budget and can truncate the JSON before grammar is saved.
+        thinking: { type: 'disabled' },
+        response_format: { type: 'json_object' },
       }),
     })
 
