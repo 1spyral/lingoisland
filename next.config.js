@@ -40,6 +40,8 @@ const nextConfig = {
     ]
   },
   async rewrites() {
+    // TODO: Remove these legacy asset paths after cached pages have expired and
+    // old URLs are no longer needed by saved links or external references.
     return [
       { source: '/animation-photos/:file*', destination: '/pronunciation/:file*' },
       { source: '/blog/images/:file*', destination: '/blog/:file*' },
