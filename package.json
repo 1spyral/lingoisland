@@ -9,6 +9,7 @@
     "dev": "next dev -p 3002",
     "build": "next build",
     "start": "next start",
+    "test": "jest",
     "lint": "next lint",
     "gen:island-library": "tsx scripts/generateIslandLibrary.ts",
     "backfill:island-covers": "tsx scripts/backfillIslandCovers.ts",
@@ -56,10 +57,12 @@
     "swr": "^2.5.1"
   },
   "devDependencies": {
+    "@types/jest": "^30.0.0",
     "@types/node": "^20.0.0",
     "@types/react": "^18.2.0",
     "@types/react-dom": "^18.2.0",
     "autoprefixer": "^10.4.16",
+    "jest": "^30.5.2",
     "postcss": "^8.4.31",
     "tailwindcss": "^3.3.5",
     "tsx": "^4.21.0",
