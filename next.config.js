@@ -39,6 +39,24 @@ const nextConfig = {
       },
     ]
   },
+  async rewrites() {
+    return [
+      { source: '/animation-photos/:file*', destination: '/pronunciation/:file*' },
+      { source: '/blog/images/:file*', destination: '/blog/:file*' },
+      { source: '/Cameron%20Lim%20Profile%20Photo.jpg', destination: '/founder/cameron-lim-profile.jpg' },
+      { source: '/Youtube%20Thumbnail.png', destination: '/founder/youtube-thumbnail.png' },
+      { source: '/Upgrade-modal.jpg', destination: '/marketing/upgrade-modal.jpg' },
+      { source: '/Recording%20of%20Lingoisland2.mov', destination: '/demos/lingoisland-demo.mov' },
+      { source: '/base_cappy.png', destination: '/templates/base-cappy.png' },
+      { source: '/blank_island.png', destination: '/templates/blank-island.png' },
+      { source: '/capybara-face.png', destination: '/characters/capybara-face.png' },
+      { source: '/capybara-peek-notch.png', destination: '/characters/capybara-peek-notch.png' },
+      { source: '/capybara-profile.png', destination: '/characters/capybara-profile.png' },
+      { source: '/capybara-waving.png', destination: '/characters/capybara-waving.png' },
+      { source: '/favicon.png', destination: '/brand/favicon.png' },
+      { source: '/logo.png', destination: '/brand/logo.png' },
+    ]
+  },
 }
 
 module.exports = nextConfig
